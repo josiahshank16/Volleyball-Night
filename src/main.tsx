@@ -115,7 +115,6 @@ function Scorekeeper({state,update}:{state:AppState;update:(fn:(draft:AppState)=
  const target=game?.target??session.scoreTarget??25,win=game?winnerOf(game,session.scoreTarget??25):null;
  const a=game?.scoreA??0,b=game?.scoreB??0;
  const teamNames=game?[teams[game.a]?.name??'Team A',teams[game.b]?.name??'Team B']:['Team A','Team B'];
- const message=(msg:string)=>setNotice(msg);
  const changeScore=(side:'a'|'b',delta:number)=>{
   if(!game||game.finishedAt)return;
   update(s=>{const g=s.session.games[s.session.currentGame];if(!g||g.finishedAt)return;
