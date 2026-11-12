@@ -1,9 +1,9 @@
 export type Gender = 'woman' | 'man' | 'other' | 'unspecified';
 export type Player = {id:string; name:string; selfSkill:number; overrideSkill:number|null; gender:Gender; height:number|null; createdAt:number};
 export type Roster = {id:string; name:string; playerIds:string[]; subs:number};
-export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; confirmedAt:number|null};
+export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; scoreTarget?:number; confirmedAt:number|null};
 export type Round = {id:string; at:number; rosters:Roster[]};
-export type Game = {id:string; a:number; b:number; cycle:number};
+export type Game = {id:string; a:number; b:number; cycle:number; scoreA?:number; scoreB?:number; serving?:'a'|'b'|null; scoreHistory?:{a:number;b:number;serving:'a'|'b'|null}[]; finishedAt?:number; target?:number};
 export type AppState = {players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean};
 export const SKILLS = [
   ['First Timer','I’m brand new to indoor volleyball and learning the rules, serving, and basic contact.'],
@@ -20,7 +20,7 @@ export const SKILLS = [
 export const uid=()=>crypto.randomUUID();
 export const skill=(p:Player)=>p.overrideSkill??p.selfSkill;
 export const ft=(inches:number|null)=>inches===null?'Not set':`${Math.floor(inches/12)}′${inches%12}″`;
-export const newSession=():Session=>({id:uid(),date:new Date().toISOString().slice(0,10),checkedIn:[],draft:[],confirmed:[],rounds:[],games:[],currentGame:0,confirmedAt:null});
+export const newSession=():Session=>({id:uid(),date:new Date().toISOString().slice(0,10),checkedIn:[],draft:[],confirmed:[],rounds:[],games:[],currentGame:0,scoreTarget:25,confirmedAt:null});
 export const initial=():AppState=>({players:[],session:newSession(),history:[],showNumbers:false});
 const STORE='volleyball-night-v01';
 export function load():AppState {try{const raw=localStorage.getItem(STORE);if(raw){const v=JSON.parse(raw) as AppState;if(v?.players&&v?.session&&v?.history)return v;}}catch{/* ignore corrupted local data */}return initial();}
@@ -87,6 +87,11 @@ export function generate(players:Player[], sizes:number[], history:AppState['his
     if(noisy<bestScore){bestScore=noisy;best=groups.map(g=>[...g]);}
   }
   return best.map((playerIds,i)=>({id:uid(),name:`Team ${i+1}`,playerIds,subs:Math.max(0,6-playerIds.length)}));
+}
+export const SCORE_TARGETS = [11,15,21,25] as const;
+export function winnerOf(game:Game, fallbackTarget=25):'a'|'b'|null {
+ const a=game.scoreA??0,b=game.scoreB??0,target=game.target??fallbackTarget;
+ return Math.max(a,b)>=target && Math.abs(a-b)>=2 ? (a>b?'a':'b') : null;
 }
 export function buildGames(count:number,cycles:number,fullFour:boolean):Game[]{
   if(count<2)return[];
