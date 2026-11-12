@@ -1,7 +1,7 @@
 import React, {useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, LockKeyhole, X, Info, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck,  Volleyball,  ArrowUpRight} from 'lucide-react';
-import {AppState,Player,SKILLS,uid,ft,skill,load,save,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,Game,SCORE_TARGETS,winnerOf} from './model';
+import {AppState,Player,SKILLS,uid,ft,skill,load,save,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
 import './style.css';
 type Page='checkin'|'players'|'teams'|'schedule'|'settings';
 const copy=<T,>(x:T):T=>structuredClone(x);
