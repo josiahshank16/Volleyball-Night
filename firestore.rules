@@ -23,6 +23,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Transitional organizer-only live session. Never publicly readable.
+    // The entire prototype state currently lives in one document, with no
+    // kiosk/scorekeeper permissions until granular role rules are ready.
+    match /liveSessions/{sessionId} {
+      allow get: if isOrganizer() && sessionId == 'current';
+      allow list, delete: if false;
+      allow create, update: if isOrganizer()
+        && sessionId == 'current'
+        && request.resource.data.keys().hasOnly([
+          'payload', 'schemaVersion', 'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.payload is map;
+    }
+
     // No access to any other documents, including future public views.
     match /{document=**} {
       allow read, write: if false;

@@ -1,47 +1,68 @@
-# Firebase: first organizer and protected Firestore test
+# Firebase live-session setup (organizer-only preview)
 
-**Firebase project:** `volleyball-night`
+Project: `volleyball-night`
 
-The organizer account you registered in Firebase Authentication is allowlisted
-by UID in `firestore.rules`. Your client SDK is configured in `src/firebase.ts`.
-This UID is a public account identifier, **not a secret**.
+## Deploy updated rules (required)
 
-## Required: publish the repository rules to Firebase
+GitHub changes do **not** deploy Firestore rules automatically.
 
-Adding `firestore.rules` to GitHub does **not** automatically deploy it.
-Complete these steps in your browser:
+1. Open Firebase Console and select **Volleyball Night**.
+2. Open the three-line navigation menu (top-left).
+3. Under **Databases & Storage**, choose **Firestore**.
+4. Click the **Rules** tab next to **Data**.
+5. In GitHub, open the root-level `firestore.rules` file.
+6. Copy the entire file and replace the contents of Firebase's Rules editor.
+7. Click **Publish** and verify Firebase reports success.
 
-1. Open https://console.firebase.google.com/project/volleyball-night/firestore/rules
-2. Confirm that the Firestore Standard `(default)` database exists.
-3. Open the `firestore.rules` file in the root of this GitHub repository.
-4. Copy **its entire contents** into the Firebase Rules editor, replacing the old rules.
-5. Click **Publish**. Do not choose Test mode and do not allow all reads or writes.
-6. Return to Codespaces, run `git pull`, and refresh the app.
-7. In **Organizer → Settings → Firebase connection**, sign in and click **Test Firestore read/write**.
-8. A success message means both the real write and the read were permitted.
+These rules allow the authenticated organizer UID to read/write only
+`organizerChecks/{uid}`, `organizerBackups/latest`, and
+`liveSessions/current`. They **do not** permit public reads, anonymous
+writes, or unrestricted users. The new live session is in **one document**
+for testing, not the final data model.
 
-Rules only permit the configured organizer UID to write a small connectivity
-test at `organizerChecks/{uid}` and read/write `organizerBackups/latest`.
-Everything else is denied, including public access and all other users.
+## Activate protected synchronization
 
-## Safely test a cloud backup
+1. In Codespaces: `git pull` and `npm install` (if necessary).
+2. Open the Volleyball Night preview; go to the corner menu → **Organizer preview** → **Settings**.
+3. In **Firebase connection**, sign in as the authorized organizer.
+4. Click **Test Firestore read/write**. If permission denied, check that
+   the *new* GitHub `firestore.rules` was published.
+5. Download your JSON backup in Settings (recommended).
+6. In **Live cloud session**, choose:
+   - **Create cloud session from this browser** if this is the browser
+     containing your authoritative data and no live session exists yet.
+   - **Join existing cloud session** if someone already created the live session.
+7. Confirm the action. The app downloads a JSON backup before replacing
+   local state or creating a new live session.
+8. Test editing a player or the scoreboard in another browser/device
+   **signed in with the same authorized organizer account**. The app
+   subscribes to the protected Firestore document.
 
-After the read/write test succeeds, choose **Upload local data backup**.
-The app checks whether a backup already exists, asks for confirmation, and
-downloads an additional JSON copy before uploading. A separate **Restore cloud
-backup here** button can replace local browser state **only on explicit
-confirmation**. It downloads a backup of the existing browser data first.
+**Do not enter real data on a public kiosk yet.** Only organizers have
+Firestore permission. The unprotected Organizer preview switch in the
+UI is for development and does not grant Firestore access.
 
-**This is not multi-device realtime synchronization.** The app still runs from
-localStorage during ordinary use. No kiosk or TV account is authorized to read
-profiles. Next we will split public display data from private profiles, add
-limited kiosk roles and safely migrate to granular Firestore documents.
+## Safeguards and known limitations
 
-## Important security cautions
+- Local browser data is never silently uploaded on first login.
+- Creating a cloud session refuses to overwrite an existing cloud document.
+- Joining a cloud session explicitly confirms the browser replacement,
+  and downloads a local JSON copy first.
+- In cloud mode, changes are committed using Firestore transactions.
+- Each client has a serialized transaction queue to keep rapid score taps
+  in order. There is still a transient optimistic UI while writes complete.
+- If a cloud write fails, the interface displays a connection error and
+  retains the browser copy; verify connectivity before continuing.
+- Firestore has a **1 MiB maximum document size**. This single-document
+  prototype must be split into separate collections before real use.
+- The organizer dashboard, kiosk, and TV are **not yet publicly deployable**.
+  Kiosk and TV roles, restricted profile access, and secure hosting are next.
+- The existing **Upload local data backup** and **Restore cloud backup here**
+  controls are separate from the live session. Disconnect live mode before
+  restoring a backup.
 
-- Keep Firebase user passwords and service account files out of the repository.
-- The app's Firebase Web SDK config isn't a service account.
-- Avoid public rules for player profiles or for backups.
-- The organizer UI itself isn't auth-gated yet: do not publish it for real use.
-- Only publish the complete reviewed `firestore.rules` file to the intended
-  Firebase project.
+## Next milestone
+
+Split profiles and sessions into granular Firestore records; add scoped
+kiosk, scorekeeper and public display permissions; remove organizer-preview
+access from public users; and deploy to Firebase Hosting.

@@ -19,3 +19,17 @@
 .fb-role-ok{font-size:12px!important;font-weight:800;color:#128469!important;background:#eaf8f2;border-radius:8px;padding:9px}
 .fb-role-warn{font-size:12px!important;font-weight:800;color:#b15d26!important;background:#fff4e8;border-radius:8px;padding:9px}
 .fb-data-test{border:1px solid #dce7ed;border-radius:13px;background:#f8fbfd;padding:17px;width:100%}.fb-data-intro{display:flex;align-items:flex-start;gap:12px;color:#557488}.fb-data-intro h3{font-size:16px;color:#263f53;margin:0 0 5px}.fb-data-intro p{font-size:12px}.fb-data-test .stack-buttons{margin-top:15px}.fb-feedback{font-size:13px!important;background:#e8f9f0;color:#107a60!important;font-weight:800;border-radius:9px;padding:12px}.fb-error{background:#fff0ee;padding:12px;border-radius:9px}
+
+/* Organizer-only protected live Firestore session */
+.cloud-control{display:flex;flex-direction:column;gap:17px}
+.cloud-control-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.cloud-control-head h2{margin:0 0 8px}
+.cloud-control-head p,.cloud-actions p{font-size:13px}
+.cloud-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#edf3f7;color:#4b687f;padding:8px 12px;font-size:12px;font-weight:800;white-space:nowrap}
+.cloud-pill.cloud-on{background:#e0f8ef;color:#117e64}
+.cloud-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cloud-actions p{flex-basis:100%}
+.cloud-warning{display:flex;align-items:center;gap:8px;color:#946226!important;background:#fff7eb;padding:10px;border-radius:8px;font-size:12px!important}
+.cloud-disclaimer{font-size:12px!important;color:#6d8091}
+.cloud-topline{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#def7ed;color:#107a5b;font-weight:800;font-size:12px;border-radius:9px;margin-bottom:18px}
+.cloud-topline.cloud-error{background:#fff0ee;color:#a63934}
