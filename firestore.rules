@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Secure by default. No cloud data is accessible until we implement
+    // device authentication and role-based rules for the real data model.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
