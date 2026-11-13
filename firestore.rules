@@ -1,8 +1,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Secure by default. No cloud data is accessible until we implement
-    // device authentication and role-based rules for the real data model.
+    // Initial organizer allowlist. This UID must match a successfully
+    // authenticated Firebase Authentication user. It is not a password.
+    function isOrganizer() {
+      return request.auth != null
+        && request.auth.uid == 'lzA887v8R7d4yWoxVlHMG9ISrAK2';
+    }
+
+    // A harmless test record to verify signed-in Firestore access.
+    match /organizerChecks/{userId} {
+      allow read, create, update: if isOrganizer()
+        && userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Explicit, organizer-only backups. Never publicly readable:
+    // these contain names, profile attributes, teams, and history.
+    match /organizerBackups/{backupId} {
+      allow read, create, update: if isOrganizer()
+        && backupId == 'latest';
+      allow delete: if false;
+    }
+
+    // No access to any other documents, including future public views.
     match /{document=**} {
       allow read, write: if false;
     }

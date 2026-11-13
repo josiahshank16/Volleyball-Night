@@ -1,43 +1,47 @@
-# Firebase setup for Volleyball Night
+# Firebase: first organizer and protected Firestore test
 
-Our current app still uses browser-local storage. The files here prepare us
-for a secure Firestore migration and Firebase Hosting, but do **not** enable
-cloud synchronization yet.
+**Firebase project:** `volleyball-night`
 
-## Do this in Firebase Console (browser only)
+The organizer account you registered in Firebase Authentication is allowlisted
+by UID in `firestore.rules`. Your client SDK is configured in `src/firebase.ts`.
+This UID is a public account identifier, **not a secret**.
 
-1. Visit https://console.firebase.google.com/ and select **Add project**.
-2. Use a project name such as `volleyball-night`. The available project ID may have a suffix; keep the exact ID.
-3. Keep the **Spark / no-cost** plan. Google Analytics is optional and not required.
-4. From Project Overview, add a **Web app** (</> icon). Name it `Volleyball Night Web`.
-5. Copy the web-app Firebase configuration values. These are web client identifiers, not service-account secrets.
-6. In **Build > Firestore Database**, create a Firestore Standard database, using **Production mode**, with the default `(default)` database and a nearby US location. Keep its security rules closed.
-7. In **Build > Authentication > Sign-in method**, enable **Email/Password** for trusted organizer and kiosk-device accounts. We will set up roles and safe rules before using real player profiles.
-8. Return to ChatGPT with the **project ID** and Web app Firebase config. Do **not** share login passwords, private service-account JSON, or API credentials that grant admin access.
+## Required: publish the repository rules to Firebase
 
-## Development path
+Adding `firestore.rules` to GitHub does **not** automatically deploy it.
+Complete these steps in your browser:
 
-- Connect the app with the Firebase Web SDK from Vite environment variables.
-- Establish a signed-in kiosk/operator mode, separate from organizer privileges.
-- Add strongly scoped Firestore security rules and test them with the Rules emulator.
-- Migrate player profiles, sessions, confirmed rosters, and schedules to Firestore.
-- Add realtime listeners for the check-in, scoreboard, and TV views.
-- Publish the built `dist` directory using **Firebase Hosting**.
+1. Open https://console.firebase.google.com/project/volleyball-night/firestore/rules
+2. Confirm that the Firestore Standard `(default)` database exists.
+3. Open the `firestore.rules` file in the root of this GitHub repository.
+4. Copy **its entire contents** into the Firebase Rules editor, replacing the old rules.
+5. Click **Publish**. Do not choose Test mode and do not allow all reads or writes.
+6. Return to Codespaces, run `git pull`, and refresh the app.
+7. In **Organizer → Settings → Firebase connection**, sign in and click **Test Firestore read/write**.
+8. A success message means both the real write and the read were permitted.
 
-## Security boundary
+Rules only permit the configured organizer UID to write a small connectivity
+test at `organizerChecks/{uid}` and read/write `organizerBackups/latest`.
+Everything else is denied, including public access and all other users.
 
-A public URL does not imply that visitors can write any Firestore data. The
-kiosk interface can be accessible without each player registering, but writes
-will require an authorized kiosk session. Organizers have their own sign-in.
-Public self-check-in from personal devices is a separate feature and will need
-a carefully scoped flow. We will not open unrestricted writes to player profiles.
+## Safely test a cloud backup
 
-## Hosting
+After the read/write test succeeds, choose **Upload local data backup**.
+The app checks whether a backup already exists, asks for confirmation, and
+downloads an additional JSON copy before uploading. A separate **Restore cloud
+backup here** button can replace local browser state **only on explicit
+confirmation**. It downloads a backup of the existing browser data first.
 
-`firebase.json` points Hosting at the Vite build folder `dist` and rewrites
-app routes to `index.html`. This is static Firebase Hosting; we do not need
-Firebase App Hosting or Cloud Functions to publish the initial app.
+**This is not multi-device realtime synchronization.** The app still runs from
+localStorage during ordinary use. No kiosk or TV account is authorized to read
+profiles. Next we will split public display data from private profiles, add
+limited kiosk roles and safely migrate to granular Firestore documents.
 
-Do not run `firebase deploy --only firestore` until the authorization rules
-are implemented and tested. The current `firestore.rules` intentionally denies
-every read and write.
+## Important security cautions
+
+- Keep Firebase user passwords and service account files out of the repository.
+- The app's Firebase Web SDK config isn't a service account.
+- Avoid public rules for player profiles or for backups.
+- The organizer UI itself isn't auth-gated yet: do not publish it for real use.
+- Only publish the complete reviewed `firestore.rules` file to the intended
+  Firebase project.
