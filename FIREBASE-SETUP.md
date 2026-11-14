@@ -1,129 +1,53 @@
-# Firebase live-session setup (organizer-only preview)
+# Volleyball Night: open design preview
 
-Project: `volleyball-night`
+This is a **deliberately open prototype**, not a production permission setup.
+Anybody with the site address can access and change the current cloud session,
+including player names, ratings, teams, scores and history. No sign-in,
+registration, or PIN is required.
 
-## Deploy updated rules (required)
+## One URL / four modes
 
-GitHub changes do **not** deploy Firestore rules automatically.
+The application URL with no query parameters opens a mode selector.
+- **Check-in kiosk**: `?mode=kiosk`
+- **TV display**: `?mode=tv`
+- **Scorekeeper**: `?mode=scorekeeper`
+- **Organizer**: `?mode=organizer`
 
-1. Open Firebase Console and select **Volleyball Night**.
-2. Open the three-line navigation menu (top-left).
-3. Under **Databases & Storage**, choose **Firestore**.
-4. Click the **Rules** tab next to **Data**.
-5. In GitHub, open the root-level `firestore.rules` file.
-6. Copy the entire file and replace the contents of Firebase's Rules editor.
-7. Click **Publish** and verify Firebase reports success.
+Use **Switch mode** to return to the selector. All four modes use the
+existing `liveSessions/current` Firestore document. Nothing is migrated
+or discarded.
 
-These rules allow the authenticated organizer UID to access `organizerChecks/{uid}`,
-`organizerBackups/latest`, `liveSessions/current`, and the separate
-`publicDisplays/current`. The public TV document is readable without
-sign-in **only when its `enabled` field is true**. Other reads and all
-non-organizer writes remain blocked. The legacy live session remains the
-source of truth while the secure public projection is introduced.
+## Activate the open design prototype
 
-## Activate protected synchronization
+1. In GitHub Codespaces, run `git pull` and refresh Vite.
+2. Open `firestore.rules` from the repository, copy everything, and
+   paste it into Firebase Console → Firestore → Rules → **Publish**.
+   The open rules permit any viewer to read and modify the current
+   session. They continue to deny listing and deleting the session.
+3. Load the app URL without query parameters. Select a mode.
+4. All modes connect automatically to the existing Firebase session.
+   No authentication is requested.
+5. If the connection fails immediately after publishing rules, wait a
+   moment and click **Retry connection** in Organizer → Settings.
+6. If no cloud session exists, open Organizer → Settings and select
+   **Create first cloud session**. Existing cloud data will not be
+   overwritten by this action.
+7. Test on two separate devices, and download a JSON backup from Settings.
 
-1. In Codespaces: `git pull` and `npm install` (if necessary).
-2. Open the Volleyball Night preview; go to the corner menu → **Organizer preview** → **Settings**.
-3. In **Firebase connection**, sign in as the authorized organizer.
-4. Click **Test Firestore read/write**. If permission denied, check that
-   the *new* GitHub `firestore.rules` was published.
-5. Download your JSON backup in Settings (recommended).
-6. In **Live cloud session**, choose:
-   - **Create cloud session from this browser** if this is the browser
-     containing your authoritative data and no live session exists yet.
-   - **Join existing cloud session** if someone already created the live session.
-7. Confirm the action. The app downloads a JSON backup before replacing
-   local state or creating a new live session.
-8. Test editing a player or the scoreboard in another browser/device
-   **signed in with the same authorized organizer account**. The app
-   subscribes to the protected Firestore document.
+**Hosting** is not deployed by this commit. Until Firebase Hosting is
+configured, the URL remains the forwarded GitHub Codespaces preview URL.
 
-**Do not enter real data on a public kiosk yet.** Only organizers have
-Firestore permission. The unprotected Organizer preview switch in the
-UI is for development and does not grant Firestore access.
+## Future leader PIN
 
-## Safeguards and known limitations
+A four-digit PIN will be added later as a **convenience gate for mode
+switching**. A client-side PIN alone is not a Firestore security
+boundary, and would not prevent a technically knowledgeable visitor
+from editing cloud data while the open rules remain deployed.
 
-- Local browser data is never silently uploaded on first login.
-- Creating a cloud session refuses to overwrite an existing cloud document.
-- Joining a cloud session explicitly confirms the browser replacement,
-  and downloads a local JSON copy first.
-- In cloud mode, changes are committed using Firestore transactions.
-- Each client has a serialized transaction queue to keep rapid score taps
-  in order. There is still a transient optimistic UI while writes complete.
-- If a cloud write fails, the interface displays a connection error and
-  retains the browser copy; verify connectivity before continuing.
-- Firestore has a **1 MiB maximum document size**. This single-document
-  prototype must be split into separate collections before real use.
-- The organizer dashboard, kiosk, and TV are **not yet publicly deployable**.
-  Kiosk and TV roles, restricted profile access, and secure hosting are next.
-- The existing **Upload local data backup** and **Restore cloud backup here**
-  controls are separate from the live session. Disconnect live mode before
-  restoring a backup.
+## Legacy
 
-## Next milestone
-
-Split profiles and sessions into granular Firestore records; add scoped
-kiosk, scorekeeper and public display permissions; remove organizer-preview
-access from public users; and deploy to Firebase Hosting.
-
-## Phase 2 — Separate public TV feed (first role boundary)
-
-**Publish updated Firestore rules first**, then `git pull` in Codespaces.
-The current organizer-only live cloud session remains intact.
-
-1. Open **Organizer → Settings → Live cloud session** and confirm **Connected**.
-2. In **Public TV display**, check **Enable public TV feed** and accept
-   the confirmation explaining that participants' names become public.
-3. After the cloud status returns to **Connected**, click
-   **Open public TV display**, or visit `?publicTv=1` on your running
-   Volleyball Night preview URL. Unlike the organizer view, this route
-   uses ONLY the read-only `publicDisplays/current` Firestore document.
-4. Open the public TV link in a different browser where you are **not**
-   signed into Firebase; confirm it receives team and score updates.
-5. Uncheck the publication checkbox to revoke public Firestore reads.
-   Wait for the cloud save to complete before closing the organizer tab.
-
-**Public TV feed includes only:** date, confirmed team names, players'
-display names, SUB counts, game pairing indices, scores, score target,
-and game progress. It excludes unconfirmed teams, check-in attendance,
-player IDs, skill rankings, height, gender, organizer settings and
-historical team data.
-
-**Important:** The TV feed publishes player names to anyone who can
-retrieve the public document while enabled. Do not turn it on without
-permission to display those names. Public display doesn't require an
-organizer login, but kiosk and scorekeeper **still do** at this phase.
-
-The original private `liveSessions/current` Firestore document is
-still authoritative. This is an incremental migration, not a completed
-split of player records or a completed kiosk/scorekeeper role system.
-For new work, establish authenticated device-specific permissions and
-separate editable documents; do not give kiosk or scorekeeper access
-to the private live document.
-
-## Phase 2 — Anonymous device pairing (approval foundation)
-
-1. In Firebase Console, open **Authentication → Sign-in method** and
-   **enable Anonymous** sign-in (leave Email/Password enabled).
-2. Publish the latest root `firestore.rules` in **Firestore → Rules**.
-3. `git pull` in Codespaces and refresh the app.
-4. Sign in to your organizer account, open **Organizer → Settings → Device pairing**.
-5. Copy the **Check-in kiosk** or **Scorekeeper** pairing link and open it
-   in a **private/incognito browser** or a separate device without an
-   organizer sign-in. Click **Request access** and optionally name the device.
-6. Back in organizer Settings, use **Approve** or **Reject**.
-7. The paired device should switch from **Waiting for organizer approval**
-   to **Approved** live. **Revoke** should immediately update its status.
-
-Security properties: Anonymous users may only create one pending request
-under their own Firebase Auth UID, and read their own request. They cannot
-approve themselves, list devices, read private profiles or write scores.
-Organizers can approve or revoke requests. There is no public organizer
-login or secret pairing code.
-
-**Scope limitation:** This change implements registration and approval
-only. It does **not yet** grant check-in, roster access or score updates.
-Those require separate scoped operational Firestore documents and security
-rules. The working organizer-only prototype remains unchanged.
+The previous organizer login, device pairing and optional public-TV
+publishing setup are no longer required for this open preview.
+The legacy Firebase Authentication accounts and devices documents are
+not removed from your Firebase project. Old URLs using `?publicTv=1`,
+`?display=1`, or `?scorekeeper=1` remain compatible.

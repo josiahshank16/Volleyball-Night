@@ -23,20 +23,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Transitional organizer-only live session. Never publicly readable.
-    // The entire prototype state currently lives in one document, with no
-    // kiosk/scorekeeper permissions until granular role rules are ready.
+    // OPEN DESIGN PROTOTYPE: anyone with the app URL can read and modify
+    // the entire current session, including names and skill attributes.
+    // This is not an authorization scheme. Restore protected rules
+    // before inviting untrusted participants.
     match /liveSessions/{sessionId} {
-      allow get: if isOrganizer() && sessionId == 'current';
+      allow get: if sessionId == 'current';
       allow list, delete: if false;
-      allow create, update: if isOrganizer()
-        && sessionId == 'current'
+      allow create, update: if sessionId == 'current'
         && request.resource.data.keys().hasOnly([
           'payload', 'schemaVersion', 'updatedAt', 'updatedBy'
         ])
-        && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.schemaVersion == 1
-        && request.resource.data.payload is map;
+        && request.resource.data.payload is map
+        && request.resource.data.payload.keys().hasOnly(['json'])
+        && request.resource.data.payload.json is string
+        && request.resource.data.updatedBy is string;
     }
 
     // Only the minimal, organizer-published TV projection is public.

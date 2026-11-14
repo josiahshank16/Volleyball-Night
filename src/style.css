@@ -73,3 +73,25 @@
 .device-form button{align-self:flex-start}
 .device-status{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:12px;background:#edf8f2}
 .device-status p{font-size:13px;line-height:1.5}
+
+/* Unified open-mode navigation */
+.vn-home{min-height:100vh;background:linear-gradient(135deg,#eaf3f7,#f7f9fb 65%,#e4f4ed);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+.vn-home-content{width:100%;max-width:900px}
+.vn-home-logo{display:flex;align-items:center;gap:12px;color:#1b4052;font-weight:850;letter-spacing:.09em;font-size:15px}
+.vn-home-logo svg{color:#168978}
+.vn-home-heading{text-align:center;margin:58px 0 32px}
+.vn-home-heading h1{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:12px 0}
+.vn-home-heading p{color:#698295;font-size:16px}
+.vn-mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.vn-mode-card{color:#1b3a4a;text-decoration:none;background:white;border:1px solid #d8e5ed;box-shadow:0 12px 40px #1c476416;border-radius:17px;padding:27px;display:flex;flex-direction:column;position:relative;min-height:190px;gap:12px;transition:transform .16s,box-shadow .16s}
+.vn-mode-card:hover{transform:translateY(-3px);box-shadow:0 17px 45px #1c476428}
+.vn-mode-card-icon{display:flex;align-items:center;justify-content:center;width:55px;height:55px;background:#e7f4f0;color:#127c71;border-radius:15px}
+.vn-mode-card strong{font-size:20px}
+.vn-mode-card p{margin:0 30px 0 0;color:#6a8292;font-size:14px}
+.vn-mode-arrow{position:absolute;right:24px;bottom:24px;color:#1a8a77}
+.vn-home-note{margin:24px 0 0;text-align:center;color:#6a8292;font-size:12px}
+.vn-mode-switch{display:flex;align-items:center;gap:8px;padding:10px 12px;color:inherit;text-decoration:none;font-weight:700;border-radius:10px;background:#eaf1f5;font-size:13px}
+.vn-mode-switch:hover{background:#d9ece7}
+.vn-mode-switch-floating{position:fixed;z-index:120;top:15px;right:15px;background:#ffffffef;box-shadow:0 7px 22px #193d542a;color:#174358}
+.vn-mode-switch-floating:hover{background:#fff}
+@media(max-width:650px){.vn-mode-grid{grid-template-columns:1fr}.vn-home-heading{margin:35px 0 25px}.vn-mode-card{min-height:155px;padding:20px}.vn-mode-card strong{font-size:18px}}
