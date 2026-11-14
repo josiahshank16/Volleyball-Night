@@ -1,7 +1,7 @@
 import React, {useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, X, Info, Cloud, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck,  Volleyball,  ArrowUpRight} from 'lucide-react';
-import {AppState,Player,SKILLS,uid,ft,skill,load,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
+import {AppState,Player,SKILLS,uid,ft,skill,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
 import {ModeHome,ModeSwitch,goMode} from './ModeHome';
 import {useCloudState} from './cloudState';
 import {toPublicTV,type PublicTVData} from './publicViews';
@@ -16,11 +16,7 @@ function App(){
  const [selectedConfig,setSelectedConfig]=useState('');const [swap,setSwap]=useState<{team:number;id:string}|null>(null);
  const [cycles,setCycles]=useState(1);const [fullFour,setFullFour]=useState(false);const [message,setMessage]=useState('');
  const [showAllPlayers,setShowAllPlayers]=useState(false);
- useEffect(()=>{
-   const incoming=()=>{if(cloudMode==='local')setState(load())};
-   window.addEventListener('storage',incoming);
-   return()=>window.removeEventListener('storage',incoming);
- },[cloudMode,setState]);
+
  const update=(fn:(draft:AppState)=>void)=>apply(fn);
  const players=useMemo(()=>[...state.players].sort(byName),[state.players]);
  const here=players.filter(p=>state.session.checkedIn.includes(p.id));
