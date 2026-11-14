@@ -95,3 +95,14 @@
 .vn-mode-switch-floating{position:fixed;z-index:120;top:15px;right:15px;background:#ffffffef;box-shadow:0 7px 22px #193d542a;color:#174358}
 .vn-mode-switch-floating:hover{background:#fff}
 @media(max-width:650px){.vn-mode-grid{grid-template-columns:1fr}.vn-home-heading{margin:35px 0 25px}.vn-mode-card{min-height:155px;padding:20px}.vn-mode-card strong{font-size:18px}}
+
+/* Team drag-and-drop: mouse, touch and keyboard, with original select fallback */
+.team-drop-zone{overflow:visible;transition:box-shadow .15s ease,border-color .15s ease;min-width:0}
+.team-drop-hover{border-color:#14a987;box-shadow:0 0 0 3px #20b38a40,0 8px 26px #0a633017}
+.team-drop-full{border-color:#d06a57;box-shadow:0 0 0 3px #d06a5735}
+.team-person{position:relative}
+.team-person.dragging-person{background:#e1f6ee;border-color:#15aa8b;box-shadow:0 8px 24px #2b655c44;opacity:.95;cursor:grabbing}
+.team-person>button.team-drag-handle{display:flex;align-items:center;justify-content:center;flex:0 0 31px;min-width:31px;max-width:31px;height:34px;border-radius:7px;background:#edf2f5;color:#527184;cursor:grab;touch-action:none;padding:0}
+.team-person>button.team-drag-handle:focus-visible{outline:3px solid #188d78;outline-offset:2px}
+.team-person>button.team-drag-handle:hover{background:#d4ede5;color:#187c6a}
+@media(hover:none){.team-person>button.team-drag-handle{width:36px;max-width:36px;flex-basis:36px;height:38px}}
