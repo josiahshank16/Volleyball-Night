@@ -1,4 +1,4 @@
-import React, {useEffect,useMemo,useState} from 'react';
+import React, {useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, X, Info, Cloud, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck,  Volleyball,  ArrowUpRight} from 'lucide-react';
 import {AppState,Player,SKILLS,uid,ft,skill,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
@@ -10,7 +10,7 @@ type Page='checkin'|'players'|'teams'|'schedule'|'settings';
 const copy=<T,>(x:T):T=>structuredClone(x);
 const byName=(a:Player,b:Player)=>a.name.localeCompare(b.name);
 function App(){
- const {state,setState,apply,mode:cloudMode,status:cloudStatus,error:cloudError,retryCloud,createCloud,missing}=useCloudState();
+ const {state,apply,mode:cloudMode,status:cloudStatus,error:cloudError,retryCloud,createCloud,missing}=useCloudState();
  const [page,setPage]=useState<Page>('checkin');const [organizer]=useState(new URLSearchParams(location.search).get('mode')==='organizer');
  const [search,setSearch]=useState('');const [editing,setEditing]=useState<Player|null>(null);const [creating,setCreating]=useState(false);
  const [selectedConfig,setSelectedConfig]=useState('');const [swap,setSwap]=useState<{team:number;id:string}|null>(null);
