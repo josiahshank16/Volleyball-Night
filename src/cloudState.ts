@@ -2,6 +2,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {onAuthStateChanged,type User} from 'firebase/auth';
 import {doc,getDoc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firebaseAuth,firestore} from './firebase';
+import {PUBLIC_TV_REF,toPublicTV} from './publicViews';
 import {type AppState,load,save,exportState} from './model';
 
 const ORGANIZER_UID='lzA887v8R7d4yWoxVlHMG9ISrAK2';
@@ -111,9 +112,15 @@ export function useCloudState(){
        const result=await runTransaction(firestore,async tx=>{
          const snap=await tx.get(LIVE_REF);
          if(!snap.exists())throw Error('Cloud session was removed. Your browser data is preserved.');
-         const next=structuredClone(cloudPayload(snap.data()));
+         const previous=cloudPayload(snap.data());
+         const next=structuredClone(previous);
          fn(next);
          tx.update(LIVE_REF,{payload:encodedPayload(next),updatedAt:serverTimestamp(),updatedBy:ORGANIZER_UID});
+         // Only touch the public TV document after explicitly opting in.
+         // After disabling, publish the disabled state to revoke public reads.
+         if(previous.publicTVEnabled===true||next.publicTVEnabled===true){
+           tx.set(PUBLIC_TV_REF,{...toPublicTV(next),updatedAt:serverTimestamp()});
+         }
          return next;
        });
        // Other queued optimistic changes should remain visible until saved.

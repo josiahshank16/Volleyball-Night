@@ -43,3 +43,10 @@
 .cloud-inline-error{font-size:12px;font-weight:500;margin:4px 0 0;line-height:1.5}
 .cloud-topline.cloud-error{align-items:flex-start}
 .cloud-topline.cloud-error .btn{margin-left:auto;flex-shrink:0}
+
+/* Staged permission separation: public TV publication controls */
+.public-tv-publisher{margin-top:22px;padding-top:20px;border-top:1px solid #dce5ed;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.public-tv-publisher h3{margin:0;font-size:17px}
+.public-tv-publisher p{margin:0;font-size:13px;line-height:1.55}
+.public-tv-publisher .checkbox-label{align-items:flex-start;line-height:1.5}
+.public-tv-help{font-size:12px!important;color:#728295}

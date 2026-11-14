@@ -14,11 +14,12 @@ GitHub changes do **not** deploy Firestore rules automatically.
 6. Copy the entire file and replace the contents of Firebase's Rules editor.
 7. Click **Publish** and verify Firebase reports success.
 
-These rules allow the authenticated organizer UID to read/write only
-`organizerChecks/{uid}`, `organizerBackups/latest`, and
-`liveSessions/current`. They **do not** permit public reads, anonymous
-writes, or unrestricted users. The new live session is in **one document**
-for testing, not the final data model.
+These rules allow the authenticated organizer UID to access `organizerChecks/{uid}`,
+`organizerBackups/latest`, `liveSessions/current`, and the separate
+`publicDisplays/current`. The public TV document is readable without
+sign-in **only when its `enabled` field is true**. Other reads and all
+non-organizer writes remain blocked. The legacy live session remains the
+source of truth while the secure public projection is introduced.
 
 ## Activate protected synchronization
 
@@ -66,3 +67,38 @@ UI is for development and does not grant Firestore access.
 Split profiles and sessions into granular Firestore records; add scoped
 kiosk, scorekeeper and public display permissions; remove organizer-preview
 access from public users; and deploy to Firebase Hosting.
+
+## Phase 2 — Separate public TV feed (first role boundary)
+
+**Publish updated Firestore rules first**, then `git pull` in Codespaces.
+The current organizer-only live cloud session remains intact.
+
+1. Open **Organizer → Settings → Live cloud session** and confirm **Connected**.
+2. In **Public TV display**, check **Enable public TV feed** and accept
+   the confirmation explaining that participants' names become public.
+3. After the cloud status returns to **Connected**, click
+   **Open public TV display**, or visit `?publicTv=1` on your running
+   Volleyball Night preview URL. Unlike the organizer view, this route
+   uses ONLY the read-only `publicDisplays/current` Firestore document.
+4. Open the public TV link in a different browser where you are **not**
+   signed into Firebase; confirm it receives team and score updates.
+5. Uncheck the publication checkbox to revoke public Firestore reads.
+   Wait for the cloud save to complete before closing the organizer tab.
+
+**Public TV feed includes only:** date, confirmed team names, players'
+display names, SUB counts, game pairing indices, scores, score target,
+and game progress. It excludes unconfirmed teams, check-in attendance,
+player IDs, skill rankings, height, gender, organizer settings and
+historical team data.
+
+**Important:** The TV feed publishes player names to anyone who can
+retrieve the public document while enabled. Do not turn it on without
+permission to display those names. Public display doesn't require an
+organizer login, but kiosk and scorekeeper **still do** at this phase.
+
+The original private `liveSessions/current` Firestore document is
+still authoritative. This is an incremental migration, not a completed
+split of player records or a completed kiosk/scorekeeper role system.
+For new work, establish authenticated device-specific permissions and
+separate editable documents; do not give kiosk or scorekeeper access
+to the private live document.

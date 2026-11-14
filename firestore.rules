@@ -39,6 +39,25 @@ service cloud.firestore {
         && request.resource.data.payload is map;
     }
 
+    // Only the minimal, organizer-published TV projection is public.
+    // Personal ratings, gender, height, attendance, history and profile IDs
+    // stay in the organizer-only liveSessions document.
+    match /publicDisplays/{displayId} {
+      allow get: if displayId == 'current'
+        && (isOrganizer() || resource.data.enabled == true);
+      allow list, delete: if false;
+      allow create, update: if isOrganizer()
+        && displayId == 'current'
+        && request.resource.data.keys().hasOnly([
+          'schemaVersion','enabled','date','teams','games',
+          'currentGame','scoreTarget','updatedAt'
+        ])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.enabled is bool
+        && request.resource.data.teams is list
+        && request.resource.data.games is list;
+    }
+
     // No access to any other documents, including future public views.
     match /{document=**} {
       allow read, write: if false;

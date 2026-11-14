@@ -4,7 +4,7 @@ export type Roster = {id:string; name:string; playerIds:string[]; subs:number};
 export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; scoreTarget?:number; confirmedAt:number|null};
 export type Round = {id:string; at:number; rosters:Roster[]};
 export type Game = {id:string; a:number; b:number; cycle:number; scoreA?:number; scoreB?:number; serving?:'a'|'b'|null; scoreHistory?:{a:number;b:number;serving:'a'|'b'|null}[]; finishedAt?:number; target?:number};
-export type AppState = {players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean};
+export type AppState = {players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean; publicTVEnabled?:boolean};
 export const SKILLS = [
   ['First Timer','I’m brand new to indoor volleyball and learning the rules, serving, and basic contact.'],
   ['Beginner','I know the basics, but serving, passing, and positioning are not yet consistent.'],
