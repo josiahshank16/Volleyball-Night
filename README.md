@@ -17,7 +17,7 @@ The app has four modes available at a single URL: check-in kiosk, TV display, sc
 
 ## Publish to Firebase Hosting
 
-See [HOSTING-SETUP.md](HOSTING-SETUP.md) for the browser-only deployment instructions. The repository now includes Firebase Hosting configuration and `npm run deploy:hosting`. Hosting deploys only the built site and leaves Firestore rules and session data unchanged.
+See [HOSTING-SETUP.md](HOSTING-SETUP.md) for the browser-only deployment instructions and [AUTOMATIC-DEPLOY.md](AUTOMATIC-DEPLOY.md) for automatic publishing after the one-time GitHub secret setup. The repository now includes Firebase Hosting configuration and `npm run deploy:hosting`. Hosting deploys only the built site and leaves Firestore rules and session data unchanged.
 
 ## Build check
 
@@ -26,3 +26,11 @@ npm run build
 ```
 
 The site is an early prototype. Team balance is heuristic and the organizer tools are currently not access-controlled.
+
+## Edit teams by dragging
+
+In **Organizer → Team builder**, use the grip beside a player's name to drag that player into another team's card. A highlighted border shows the destination. A team can hold up to eight players. This works with mouse, touch and keyboard. The tap-to-swap and team dropdown controls remain available. **Confirm teams again** after changes to save the final lineup and history.
+
+## Dependency audit
+
+See [DEPENDENCY-AUDIT.md](DEPENDENCY-AUDIT.md) for the current npm audit findings and why we haven't applied an unsafe forced Firebase downgrade.

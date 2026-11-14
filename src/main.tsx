@@ -58,7 +58,7 @@ function App(){
   <KioskCheckin players={players} here={here} search={search} setSearch={setSearch} matches={searchMatches} showAllPlayers={showAllPlayers} setShowAllPlayers={setShowAllPlayers}
     teamsReady={state.session.confirmed.length} onToggleAttendance={toggleAttendance} onCreatePlayer={()=>{setEditing(null);setCreating(true)}} onOpenDisplay={openDisplay} onOpenScorekeeper={openScorekeeper} onEnterOrganizer={()=>goMode('organizer')}/>
   {(creating||editing)&&<PlayerModal player={editing} onClose={()=>{setCreating(false);setEditing(null)}} onSave={upsertPlayer}/>}
-  <ModeSwitch floating/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/>
+  <CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/>
  </>;
  return <div className="app">
   <aside className="sidebar">
@@ -164,7 +164,7 @@ function Scorekeeper({state,update}:{state:AppState;update:(fn:(draft:AppState)=
    <div className="scorekeeper-actions"><button className="btn secondary" onClick={undo} disabled={!game.scoreHistory?.length}><Undo2 size={18}/> Undo</button><button className="btn secondary" onClick={reset}>Reset score</button><button className="btn primary" disabled={!win} onClick={finish}><Check size={19}/> Finish game & next matchup</button></div>
   </>}
   {notice&&<p className="scorekeeper-notice">{notice}</p>}
-  <p className="scorekeeper-foot">Prototype: scores sync across tabs on the same browser origin. Firebase will enable TV updates on a different device.</p>
+  <p className="scorekeeper-foot">Live scores sync through Firebase across devices. Use Switch mode to return to the home screen.</p>
  </div>
 }
 
