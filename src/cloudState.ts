@@ -18,17 +18,29 @@ function isAppState(value:unknown):value is AppState {
    Array.isArray(v.session.checkedIn)&&Array.isArray(v.session.confirmed)&&
    Array.isArray(v.session.games)&&Array.isArray(v.session.draft);
 }
+// Older sessions store raw maps. Current sessions store a JSON string in a
+// wrapper map: Firestore does not support arrays directly nested in arrays,
+// which confirmed team history includes.
 function cloudPayload(data:unknown):AppState {
  const payload=(data as {payload?:unknown}|undefined)?.payload;
- if(!isAppState(payload))throw Error('Cloud data is not in a supported format. The existing browser data was preserved.');
- return payload;
+ let parsed:unknown=payload;
+ if(payload&&typeof payload==='object'&&'json' in payload){
+   const json=(payload as {json?:unknown}).json;
+   if(typeof json!=='string')throw Error('Cloud session contains an invalid JSON payload.');
+   try{parsed=JSON.parse(json)}catch{throw Error('Cloud session JSON could not be parsed. Your local browser data was preserved.')}
+ }
+ if(!isAppState(parsed))throw Error('Cloud data is not in a supported format. The existing browser data was preserved.');
+ return parsed;
 }
+function encodedPayload(state:AppState){return {json:JSON.stringify(state)};}
 function message(err:unknown):string {
  const code=(err as {code?:string}).code??'';
  if(code==='permission-denied')return 'Permission denied. Sign in as the organizer and verify the latest Firestore rules are published.';
  if(code==='unavailable')return 'Firestore is unavailable. Check your connection and use Retry connection.';
  if(code==='resource-exhausted')return 'Firestore limits were reached. Try again later.';
- return (err as Error)?.message??String(err);
+ if(code==='invalid-argument')return 'Firestore rejected this saved state: '+((err as Error)?.message??'Invalid argument');
+ if(code==='aborted')return 'Another device updated the session at the same time. Retry the operation.';
+ return code?code+': '+((err as Error)?.message??String(err)):(err as Error)?.message??String(err);
 }
 export function useCloudState(){
  const [state,setState]=useState<AppState>(load);
@@ -101,7 +113,7 @@ export function useCloudState(){
          if(!snap.exists())throw Error('Cloud session was removed. Your browser data is preserved.');
          const next=structuredClone(cloudPayload(snap.data()));
          fn(next);
-         tx.update(LIVE_REF,{payload:next,updatedAt:serverTimestamp(),updatedBy:ORGANIZER_UID});
+         tx.update(LIVE_REF,{payload:encodedPayload(next),updatedAt:serverTimestamp(),updatedBy:ORGANIZER_UID});
          return next;
        });
        // Other queued optimistic changes should remain visible until saved.
@@ -134,7 +146,7 @@ export function useCloudState(){
    await runTransaction(firestore,async tx=>{
      const check=await tx.get(LIVE_REF);
      if(check.exists())throw Error('A cloud session was created elsewhere. Join it instead.');
-     tx.set(LIVE_REF,{payload:latest.current,schemaVersion:1,updatedBy:ORGANIZER_UID,updatedAt:serverTimestamp()});
+     tx.set(LIVE_REF,{payload:encodedPayload(latest.current),schemaVersion:1,updatedBy:ORGANIZER_UID,updatedAt:serverTimestamp()});
    });
    localStorage.setItem(MODE_KEY,'cloud');
    setMode('cloud');setStatus('connecting');setError('');

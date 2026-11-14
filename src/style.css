@@ -39,3 +39,7 @@
 .cloud-health-error{background:#fff1ef;border-color:#ecc7c2;color:#903e34}
 .cloud-health svg{flex-shrink:0}
 .cloud-health p{font-size:12px;margin:4px 0 0;color:inherit;line-height:1.4}
+
+.cloud-inline-error{font-size:12px;font-weight:500;margin:4px 0 0;line-height:1.5}
+.cloud-topline.cloud-error{align-items:flex-start}
+.cloud-topline.cloud-error .btn{margin-left:auto;flex-shrink:0}
