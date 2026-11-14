@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {Cloud,CloudOff,CloudUpload,CloudDownload,AlertTriangle} from 'lucide-react';
 
-export function CloudControl({mode,status,error,authorized,playerCount,startCloud,joinCloud,leaveCloud}:{
+export function CloudControl({mode,status,error,authorized,playerCount,startCloud,joinCloud,leaveCloud,retryCloud}:{
  mode:'local'|'cloud';
  status:'local'|'connecting'|'connected'|'saving'|'error';
  error:string;
@@ -10,6 +10,7 @@ export function CloudControl({mode,status,error,authorized,playerCount,startClou
  startCloud:()=>Promise<string>;
  joinCloud:()=>Promise<string>;
  leaveCloud:()=>void;
+ retryCloud:()=>void;
 }){
  const [busy,setBusy]=useState(false),[note,setNote]=useState(''),[failure,setFailure]=useState('');
  async function act(action:()=>Promise<string>){
@@ -37,6 +38,7 @@ export function CloudControl({mode,status,error,authorized,playerCount,startClou
       <button type="button" className="btn secondary" disabled={!authorized||busy} onClick={()=>act(joinCloud)}><CloudDownload size={17}/> Join existing cloud session</button>
    </div>:<div className="cloud-actions">
       <p>Changes now save to a protected Firestore document. This is still a transitional single-document prototype.</p>
+      {status==='error'&&<button type="button" className="btn primary" disabled={busy} onClick={retryCloud}>Retry connection</button>}
       <button type="button" className="btn secondary" disabled={busy||status==='saving'} onClick={()=>{setFailure('');try{leaveCloud();setNote('Disconnected. Your current browser copy remains available.')}catch(e){setFailure((e as Error).message)}}}><CloudOff size={17}/> Disconnect this browser</button>
    </div>}
    {!authorized&&<p className="cloud-warning"><AlertTriangle size={18}/> Sign in above as the authorized organizer to enable cloud access.</p>}

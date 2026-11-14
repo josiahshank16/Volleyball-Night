@@ -24,7 +24,13 @@ export const newSession=():Session=>({id:uid(),date:new Date().toISOString().sli
 export const initial=():AppState=>({players:[],session:newSession(),history:[],showNumbers:false});
 const STORE='volleyball-night-v01';
 export function load():AppState {try{const raw=localStorage.getItem(STORE);if(raw){const v=JSON.parse(raw) as AppState;if(v?.players&&v?.session&&v?.history)return v;}}catch{/* ignore corrupted local data */}return initial();}
-export function save(s:AppState){localStorage.setItem(STORE,JSON.stringify(s));window.dispatchEvent(new CustomEvent('volleyball-saved'));}
+export function save(s:AppState){
+ const next=JSON.stringify(s);
+ // Avoid an endless storage-event ping-pong between open tabs.
+ if(localStorage.getItem(STORE)===next)return;
+ localStorage.setItem(STORE,next);
+ window.dispatchEvent(new CustomEvent('volleyball-saved'));
+}
 export function samplePlayers():Player[]{const names=['Alex','Jordan','Taylor','Morgan','Casey','Avery','Riley','Sam','Cameron','Jamie','Parker','Quinn','Blake','Reese','Drew','Harper','Charlie','Skyler'];return names.map((name,i)=>({id:uid(),name,selfSkill:[5,7,4,6,3,8,5,6,4,7,3,5,6,8,4,6,7,5][i],overrideSkill:null,gender:(i%3===0?'woman':i%3===1?'man':'unspecified') as Gender,height:i%5===0?74:i%5===1?69:i%5===2?64:i%5===3?72:67,createdAt:Date.now()}));}
 export function configs(count:number):number[][] {
   const list:number[][]=[];

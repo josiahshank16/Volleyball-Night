@@ -33,3 +33,9 @@
 .cloud-disclaimer{font-size:12px!important;color:#6d8091}
 .cloud-topline{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#def7ed;color:#107a5b;font-weight:800;font-size:12px;border-radius:9px;margin-bottom:18px}
 .cloud-topline.cloud-error{background:#fff0ee;color:#a63934}
+
+/* Cloud connection health on kiosk, scorekeeper, and TV previews */
+.cloud-health{position:fixed;z-index:90;bottom:14px;right:14px;max-width:min(420px,calc(100vw - 28px));display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border-radius:13px;background:#fff8e8;border:1px solid #edd9b2;color:#815b20;box-shadow:0 12px 32px #081e3033;font-size:13px}
+.cloud-health-error{background:#fff1ef;border-color:#ecc7c2;color:#903e34}
+.cloud-health svg{flex-shrink:0}
+.cloud-health p{font-size:12px;margin:4px 0 0;color:inherit;line-height:1.4}
