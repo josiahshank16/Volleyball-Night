@@ -1,27 +1,28 @@
 # Volleyball Night
 
-A tablet-first indoor 6v6 volleyball check-in, team generation and scheduling prototype (React + TypeScript + Vite).
+Indoor 6v6 volleyball check-in, team building, scheduling, live scoreboard, and TV display. Built with React + TypeScript + Vite + Cloud Firestore.
 
-## Run entirely in your browser using GitHub Codespaces
+## Open the app
 
-1. Open this repository in GitHub.
-2. Select **Code > Codespaces > Create codespace on main**.
-3. The dev container automatically runs `npm install` (it may take a moment).
-4. In the Codespaces terminal, run `npm run dev`.
-5. Open the forwarded **5173** port to view the app. If not automatically opened, select the **Ports** tab and click the globe icon beside port 5173.
-6. In the app, switch to **Organizer mode > Settings > Add 18 sample players** to explore.
+The app has four modes available at a single URL: check-in kiosk, TV display, scorekeeper, and organizer. The site defaults to the mode-selection home screen. All modes synchronize against the current Firestore session.
 
-Build check: `npm run build`.
+**This is an open design prototype:** Anyone with the app URL can read and edit shared volleyball night data. There is no sign-in or leader PIN yet.
 
-## Important limitations
+## Run in GitHub Codespaces
 
-- This is a **local-storage prototype**. Player and team data are not saved to Firebase or synchronized between separate devices yet.
-- Organizer mode is **not secure authentication**. Do not use this prototype as a public check-in kiosk or enter real sensitive player data.
-- You can export JSON backups from Settings, but importing backups is not implemented yet.
-- The TV display works with the same browser storage, not across remote tablets and TVs.
-- SUB borrowing is manual; the schedule generator does not automatically prevent borrowed-player conflicts.
-- Only confirmed team drafts enter team history. The balancing heuristic is not guaranteed optimal.
+1. Open the repository in GitHub → Code → Codespaces.
+2. In the terminal, run `npm install` and `npm run dev`.
+3. Open forwarded port **5173** for the preview.
+4. Use **Switch mode** to move between the four modes.
 
-## Next milestone
+## Publish to Firebase Hosting
 
-Test Codespaces preview, then add Firebase Authentication, Firestore with authorization rules, and Firebase Hosting for the shared tablet and TV display.
+See [HOSTING-SETUP.md](HOSTING-SETUP.md) for the browser-only deployment instructions. The repository now includes Firebase Hosting configuration and `npm run deploy:hosting`. Hosting deploys only the built site and leaves Firestore rules and session data unchanged.
+
+## Build check
+
+```bash
+npm run build
+```
+
+The site is an early prototype. Team balance is heuristic and the organizer tools are currently not access-controlled.
