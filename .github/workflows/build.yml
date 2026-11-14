@@ -12,3 +12,15 @@ jobs:
           node-version: '22'
       - run: npm install
       - run: npm run build
+      - name: Summarize npm security advisories (informational)
+        shell: bash
+        run: |
+          npm audit --json > audit-report.json || true
+          node -e '
+            const r = require("./audit-report.json");
+            console.log("npm audit summary:", JSON.stringify(r.metadata?.vulnerabilities || {}));
+            for (const [name, issue] of Object.entries(r.vulnerabilities || {})) {
+              console.log(issue.severity + ": " + name + " | fix available: " + JSON.stringify(issue.fixAvailable));
+            }
+          '
+          rm -f audit-report.json

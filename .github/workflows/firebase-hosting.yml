@@ -1,0 +1,43 @@
+name: Publish Volleyball Night to Firebase Hosting
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: volleyball-night-firebase-live
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install
+      - name: Build website
+        run: npm run build
+      - name: Check Firebase authorization
+        id: credentials
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT }}
+        run: |
+          if [ -z "$FIREBASE_CREDENTIALS" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Automatic deployment awaits the FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT repository secret. Build succeeded; live Hosting remains unchanged."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy verified build to the live Firebase Hosting site
+        if: steps.credentials.outputs.ready == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT }}
+          projectId: volleyball-night
+          channelId: live
