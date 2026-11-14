@@ -102,3 +102,28 @@ split of player records or a completed kiosk/scorekeeper role system.
 For new work, establish authenticated device-specific permissions and
 separate editable documents; do not give kiosk or scorekeeper access
 to the private live document.
+
+## Phase 2 — Anonymous device pairing (approval foundation)
+
+1. In Firebase Console, open **Authentication → Sign-in method** and
+   **enable Anonymous** sign-in (leave Email/Password enabled).
+2. Publish the latest root `firestore.rules` in **Firestore → Rules**.
+3. `git pull` in Codespaces and refresh the app.
+4. Sign in to your organizer account, open **Organizer → Settings → Device pairing**.
+5. Copy the **Check-in kiosk** or **Scorekeeper** pairing link and open it
+   in a **private/incognito browser** or a separate device without an
+   organizer sign-in. Click **Request access** and optionally name the device.
+6. Back in organizer Settings, use **Approve** or **Reject**.
+7. The paired device should switch from **Waiting for organizer approval**
+   to **Approved** live. **Revoke** should immediately update its status.
+
+Security properties: Anonymous users may only create one pending request
+under their own Firebase Auth UID, and read their own request. They cannot
+approve themselves, list devices, read private profiles or write scores.
+Organizers can approve or revoke requests. There is no public organizer
+login or secret pairing code.
+
+**Scope limitation:** This change implements registration and approval
+only. It does **not yet** grant check-in, roster access or score updates.
+Those require separate scoped operational Firestore documents and security
+rules. The working organizer-only prototype remains unchanged.

@@ -50,3 +50,26 @@
 .public-tv-publisher p{margin:0;font-size:13px;line-height:1.55}
 .public-tv-publisher .checkbox-label{align-items:flex-start;line-height:1.5}
 .public-tv-help{font-size:12px!important;color:#728295}
+
+/* Permission-safe device pairing preview */
+.device-panel{display:flex;flex-direction:column;gap:14px}
+.device-panel h2,.device-panel h3,.device-panel p{margin:0}
+.device-panel p{font-size:13px;line-height:1.5;color:#637486}
+.device-links{display:flex;flex-direction:column;gap:10px}
+.device-link,.device-item{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid #dce6ef;border-radius:12px}
+.device-link strong{flex:1}
+.device-list{display:flex;flex-direction:column;gap:9px}
+.device-item{justify-content:space-between}
+.device-item>div:first-child{display:flex;flex-direction:column;gap:4px}
+.device-meta{font-size:12px;color:#66788a}
+.device-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.device-feedback{padding:12px;border-radius:10px;background:#fff3ec;color:#8f4935!important}
+.device-pairing-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#eff4f8;padding:20px}
+.device-pairing-card{background:white;box-shadow:0 16px 40px #18344718;border-radius:18px;padding:28px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:18px}
+.device-pairing-card h1,.device-pairing-card h2,.device-pairing-card p{margin:0}
+.device-pairing-card>p{color:#657587;line-height:1.55}
+.device-form{display:flex;flex-direction:column;gap:10px}
+.device-form input{border:1px solid #b8c7d5;padding:12px;border-radius:9px}
+.device-form button{align-self:flex-start}
+.device-status{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:12px;background:#edf8f2}
+.device-status p{font-size:13px;line-height:1.5}

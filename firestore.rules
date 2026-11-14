@@ -58,6 +58,35 @@ service cloud.firestore {
         && request.resource.data.games is list;
     }
 
+    // Pairing requests grant NO operational data access yet. Anonymous
+    // users can only create their own strictly pending request, and read
+    // the resulting status. Only the organizer can approve/revoke devices.
+    match /devices/{deviceId} {
+      allow get: if isOrganizer()
+        || (request.auth != null && request.auth.uid == deviceId);
+      allow list: if isOrganizer();
+      allow create: if request.auth != null
+        && request.auth.uid == deviceId
+        && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && request.resource.data.keys().hasOnly([
+          'role','label','status','createdAt'
+        ])
+        && request.resource.data.role in ['kiosk','scorekeeper']
+        && request.resource.data.status == 'pending'
+        && request.resource.data.label is string
+        && request.resource.data.label.size() <= 40
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOrganizer()
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.label == resource.data.label
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.keys().hasOnly([
+          'role','label','status','createdAt','approvedAt'
+        ])
+        && request.resource.data.status in ['pending','approved','revoked'];
+      allow delete: if false;
+    }
+
     // No access to any other documents, including future public views.
     match /{document=**} {
       allow read, write: if false;
