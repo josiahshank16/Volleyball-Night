@@ -2,7 +2,7 @@
 type GoogleError=Error&{status?:number};
 type Account={localId?:string;email?:string};
 
-async function ownerApi<T>(url:string,token:string,method='GET',body?:unknown):Promise<T>{
+export async function ownerApi<T>(url:string,token:string,method='GET',body?:unknown):Promise<T>{
  const response=await fetch(url,{method,headers:{Authorization:'Bearer '+token,
   ...(body===undefined?{}:{'Content-Type':'application/json'})},
   ...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -20,7 +20,9 @@ async function ownerApi<T>(url:string,token:string,method='GET',body?:unknown):P
 
 export function leaderEmail(projectId:string){
  if(!/^vn-[a-z0-9-]{3,54}$/.test(projectId))throw Error('Invalid group project ID.');
- return 'leader@'+projectId+'.invalid';
+ // example.com is reserved for examples, while its domain shape is accepted
+ // by Firebase's email validator. Password reset mail has no real recipient.
+ return 'leader@'+projectId+'.example.com';
 }
 
 /** The owner sign-in requests `openid email` in addition to cloud-platform. */

@@ -1,14 +1,21 @@
-import React, {useMemo,useState} from 'react';
+import React, {useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, X, Info, Cloud, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck,  Volleyball,  ArrowUpRight} from 'lucide-react';
+import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, X, Info, Cloud, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck, KeyRound, Volleyball, ArrowUpRight} from 'lucide-react';
 import {AppState,Player,SKILLS,uid,ft,skill,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
 import {ModeHome,ModeSwitch,goMode,modeHref} from './ModeHome';
 import {GroupSetup} from './GroupSetup';
 import {GoogleSetupPilot} from './GoogleSetupPilot';
 import {MyGroups} from './MyGroups';
 import {connectedGroupName,firebaseConfig} from './firebase';
-import {groupLinkError,isIndependentGroupSite,useOriginalGroup} from './groupConnection';
+import {activeGroup,groupLinkError,isIndependentGroupSite,useOriginalGroup} from './groupConnection';
 import {useCloudState} from './cloudState';
+import {useProtectedCloudState} from './protectedCloudState';
+import {useProtectionStatus,usePublicKiosk,usePublicTV} from './protectedPublic';
+import {enterLeaderMode} from './leaderAccess';
+import {firebaseAuth} from './firebase';
+import {onAuthStateChanged} from 'firebase/auth';
+import {leaderEmail} from './accessAdmin';
+import {OwnerAccess} from './OwnerAccess';
 import {toPublicTV,type PublicTVData} from './publicViews';
 import {DndContext,PointerSensor,KeyboardSensor,pointerWithin,rectIntersection,useSensor,useSensors,type DragEndEvent} from '@dnd-kit/core';
 import {DragPlayer,DropTeam} from './DragTeams';
@@ -16,8 +23,8 @@ import './style.css';
 type Page='checkin'|'players'|'teams'|'schedule'|'settings';
 const copy=<T,>(x:T):T=>structuredClone(x);
 const byName=(a:Player,b:Player)=>a.name.localeCompare(b.name);
-function App(){
- const {state,apply,mode:cloudMode,status:cloudStatus,error:cloudError,retryCloud,createCloud,missing}=useCloudState();
+function App({stateHook=useCloudState,protectedMode=false}:{stateHook?:typeof useCloudState;protectedMode?:boolean}){
+ const {state,apply,mode:cloudMode,status:cloudStatus,error:cloudError,retryCloud,createCloud,missing}=stateHook();
  const [page,setPage]=useState<Page>('checkin');const [organizer]=useState(new URLSearchParams(location.search).get('mode')==='organizer');
  const [search,setSearch]=useState('');const [editing,setEditing]=useState<Player|null>(null);const [creating,setCreating]=useState(false);
  const [selectedConfig,setSelectedConfig]=useState('');const [swap,setSwap]=useState<{team:number;id:string}|null>(null);
@@ -91,7 +98,7 @@ function App(){
    <div className="brand"><div className="brandmark"><Volleyball size={24}/></div><div><b>VOLLEYBALL</b><span>NIGHT</span></div></div>
    <div className="sidebar-label">PLAYERS</div>
    <Nav icon={<ClipboardCheck size={19}/>} name="Check-in" active={page==='checkin'} click={()=>setPage('checkin')}/>
-   {organizer&&<><div className="sidebar-label top-gap">ORGANIZER</div><Nav icon={<Users size={19}/>} name="Player profiles" active={page==='players'} click={()=>setPage('players')}/><Nav icon={<Shuffle size={19}/>} name="Team builder" active={page==='teams'} click={()=>setPage('teams')}/><Nav icon={<CalendarDays size={19}/>} name="Game schedule" active={page==='schedule'} click={()=>setPage('schedule')}/><Nav icon={<Settings size={19}/>} name="Settings" active={page==='settings'} click={()=>setPage('settings')}/></>}
+   {organizer&&<><div className="sidebar-label top-gap">ORGANIZER</div><Nav icon={<Users size={19}/>} name="Player profiles" active={page==='players'} click={()=>setPage('players')}/><Nav icon={<Shuffle size={19}/>} name="Team builder" active={page==='teams'} click={()=>setPage('teams')}/><Nav icon={<CalendarDays size={19}/>} name="Game schedule" active={page==='schedule'} click={()=>setPage('schedule')}/><Nav icon={<Settings size={19}/>} name="Settings" active={page==='settings'} click={()=>protectedMode?goMode('owner-settings'):setPage('settings')}/></>}
    <div className="sidebar-bottom"><button className="nav display-link" onClick={openScorekeeper}><Trophy size={19}/> Open scorekeeper <ArrowUpRight size={15}/></button><button className="nav display-link" onClick={openDisplay}><Monitor size={19}/> Open TV display <ArrowUpRight size={15}/></button><ModeSwitch/><p>Open live design preview</p></div>
   </aside>
   <div className="main">
@@ -103,7 +110,7 @@ function App(){
     {page==='players'&&organizer&&<><div className="page-heading"><div><div className="eyebrow">ROSTER MANAGEMENT</div><h1>Player profiles</h1><p>Skill levels and organizer overrides stay saved between sessions.</p></div><button className="btn primary" onClick={()=>setCreating(true)}><UserPlus size={18}/> Add player</button></div><div className="panel table-panel"><div className="table-scroll"><table><thead><tr><th>PLAYER</th><th>SKILL</th><th>GENDER</th><th>HEIGHT</th><th>CHECKED IN</th><th></th></tr></thead><tbody>{players.map(p=><tr key={p.id}><td><span className="table-avatar">{p.name[0]?.toUpperCase()}</span><b>{p.name}</b></td><td><span className="pill">{SKILLS[skill(p)-1][0]}</span>{p.overrideSkill!==null&&<small> overridden</small>}{state.showNumbers&&<small> · {skill(p)}/10</small>}</td><td>{p.gender==='unspecified'?'Not set':p.gender}</td><td>{ft(p.height)}</td><td>{state.session.checkedIn.includes(p.id)?<span className="text-green">● Yes</span>:'No'}</td><td><button className="icon-btn" title={'Edit '+p.name} onClick={()=>setEditing(p)}><Pencil size={17}/></button><button className="icon-btn red" title={'Delete '+p.name} onClick={()=>removePlayer(p.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table></div>{players.length===0&&<div className="empty">No players yet.</div>}</div></>}
     {page==='teams'&&organizer&&<><div className="page-heading"><div><div className="eyebrow">FAIR TEAMS, FAST</div><h1>Team builder</h1><p>{here.length} checked in · Indoor 6v6 · Up to 8 actual players per team</p></div>{state.session.confirmed.length>0&&<span className="status"><Check size={16}/> Teams confirmed</span>}</div>{here.length<8?<div className="empty panel"><Users size={38}/><h2>Check in more players</h2><p>At least eight checked-in players are needed to create two automatic rosters with no more than two Sub slots each.</p><button className="btn primary" onClick={()=>setPage('checkin')}>Go to check-in</button></div>:<><div className="panel"><div className="panel-top"><div><h2>1. Choose a team arrangement</h2><span>Each option assigns every checked-in player exactly once.</span></div></div><div className="config-grid">{patterns.map(p=><button key={configKey(p)} onClick={()=>setSelectedConfig(configKey(p))} className={'config '+(configKey(p)===configKey(validChoice)?'chosen':'')}><div><b>{p.length} teams</b>{configKey(p)===configKey(validChoice)&&<Check size={18}/>}</div><strong>{p.join(' / ')}</strong><small>{p.reduce((n,x)=>n+Math.max(0,6-x),0)} Sub slot(s){p.some(x=>x>6)?' · rotating extras':''}</small></button>)}</div>{patterns.length===0&&<p>No valid arrangements for this attendance total under the two-Sub limit.</p>}<div className="panel-actions"><button className="btn primary" disabled={!validChoice} onClick={makeTeams}><Shuffle size={17}/> Generate teams</button></div></div>{roster.length>0&&<><div className="section-heading"><div><h2>2. Review & adjust</h2><p>Drag a player's grip to another team. You can still tap two players to swap or use the team dropdown.</p></div><div className="button-group"><button className="btn secondary" onClick={regenerate} disabled={!state.session.draft.length}><RefreshCw size={16}/> Regenerate</button><button className="btn primary" onClick={confirm} disabled={!state.session.draft.length}><Check size={17}/> Confirm teams</button></div></div><DndContext sensors={teamSensors} collisionDetection={args=>{const hits=pointerWithin(args);return hits.length?hits:rectIntersection(args)}} onDragEnd={dropPlayer}><div className="team-grid">{roster.map((t,i)=><DropTeam index={i} full={t.playerIds.length>=8} key={t.id}><div className="team-head"><div className={'team-stripe c'+i%6}/><div><h3>{t.name}</h3><small>{t.playerIds.length} players{t.subs?` + ${t.subs} Sub${t.subs>1?'s':''}`:''}</small></div></div><div className="team-people">{t.playerIds.map(id=>{const p=state.players.find(p=>p.id===id);if(!p)return null;return <DragPlayer id={id} selected={swap?.id===id} key={id}><button onClick={()=>pickPlayer(i,id)} title="Select for swap"><span className="mini-avatar">{p.name[0]}</span><span>{p.name}</span></button>{state.showNumbers&&<small>{skill(p)}</small>}<select aria-label={`Move ${p.name} to team`} value={i} onChange={e=>movePlayer(id,i,Number(e.target.value))}>{roster.map((other,j)=><option key={other.id} value={j} disabled={j!==i&&other.playerIds.length>=8}>Team {j+1}</option>)}</select></DragPlayer>})}{Array.from({length:t.subs},(_,j)=><div className="sub-row" key={j}><span>SUB</span><button aria-label="Remove sub" onClick={()=>adjustTeam(i,-1)}><X size={16}/></button></div>)}</div><div className="team-footer"><button className="sub-add" onClick={()=>adjustTeam(i,1)}><Plus size={15}/> Add a Sub</button></div></DropTeam>)}</div></DndContext><div className="alert"><Info size={18}/><div><b>Sub placeholders are not assigned people.</b><span>Borrow players from resting teams when a game needs them. Games with only two teams cannot borrow from a resting team.</span></div></div>{state.session.confirmed.length>0&&<div className="actions-row"><span className="note">Confirmed assignments count toward future teammate history.</span><button className="btn primary" onClick={()=>setPage('schedule')}>Create schedule <ArrowRight size={17}/></button></div>}</>}</>}</>}
     {page==='schedule'&&organizer&&<><div className="page-heading"><div><div className="eyebrow">ONE COURT · FAIR ROTATION</div><h1>Game schedule</h1><p>Sequential matchups with balanced game counts and short breaks.</p></div></div>{state.session.confirmed.length<2?<div className="empty panel"><CalendarDays size={38}/><h2>Confirm teams first</h2><p>Generate and confirm teams before making a schedule.</p><button className="btn primary" onClick={()=>setPage('teams')}>Go to team builder</button></div>:<><div className="panel scheduler-options"><div><h2>Schedule settings</h2><p>{state.session.confirmed.length} confirmed teams · 1 court</p></div><div className="option-controls"><label>Cycles <select value={cycles} onChange={e=>setCycles(+e.target.value)}>{[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n}</option>)}</select></label>{state.session.confirmed.length===4&&<label className="checkbox-label"><input type="checkbox" checked={fullFour} onChange={e=>setFullFour(e.target.checked)}/> Full 6-game round robin (instead of 4 games)</label>}<label>Points <select value={state.session.scoreTarget??25} onChange={e=>update(s=>{s.session.scoreTarget=+e.target.value})}>{SCORE_TARGETS.map(n=><option key={n} value={n}>{n} · win by 2</option>)}</select></label><button className="btn primary" onClick={createSchedule}><CalendarDays size={17}/> {state.session.games.length?'Rebuild schedule':'Generate schedule'}</button></div></div>{state.session.games.length>0&&<><div className="current-game"><div className="eyebrow">{state.session.currentGame>=state.session.games.length?'SCHEDULE COMPLETE':'ON THE COURT'}</div>{state.session.currentGame<state.session.games.length?<><h2>{state.session.confirmed[state.session.games[state.session.currentGame].a]?.name} <span>vs</span> {state.session.confirmed[state.session.games[state.session.currentGame].b]?.name}</h2><p>Game {state.session.currentGame+1} of {state.session.games.length}</p></>:<h2>All games complete!</h2>}<div className="button-group"><button className="btn secondary darkbtn" onClick={()=>update(s=>{s.session.currentGame=Math.max(0,s.session.currentGame-1)})} disabled={state.session.currentGame===0}>Previous</button><button className="btn primary" onClick={()=>update(s=>{s.session.currentGame=Math.min(s.session.games.length,s.session.currentGame+1)})} disabled={state.session.currentGame>=state.session.games.length}><Play size={16}/> Next game</button></div></div><div className="panel"><div className="panel-top"><h2>Game order</h2><span>Same court · no overlapping games</span></div><div className="game-list">{state.session.games.map((g,i)=><div className={'game-row '+(i===state.session.currentGame?'now':'')+(i<state.session.currentGame?' finished':'')} key={g.id}><div className="game-number">{i+1}</div><div><b>{state.session.confirmed[g.a]?.name} <span>vs</span> {state.session.confirmed[g.b]?.name}</b><small>Cycle {g.cycle} · Rest: {state.session.confirmed.map((_,j)=>j).filter(j=>j!==g.a&&j!==g.b).map(j=>`Team ${j+1}`).join(', ')||'No resting teams'}</small></div><span className="game-tag">{i<state.session.currentGame?'Played':i===state.session.currentGame?'Current':'Upcoming'}</span></div>)}</div></div></>}</>}</>}
-    {page==='settings'&&organizer&&<><div className="page-heading"><div><div className="eyebrow">PREFERENCES & DATA</div><h1>Settings</h1><p>Manage this prototype and back up your data.</p></div></div><div className="settings-grid"><div className="panel setting-card"><h2>Connected group</h2>
+    {page==='settings'&&organizer&&<><div className="page-heading"><div><div className="eyebrow">PREFERENCES & DATA</div><h1>Settings</h1><p>Manage this prototype and back up your data.</p></div>{activeGroup&&<a className="btn primary" href={modeHref('owner-settings')}><KeyRound size={17}/> Google owner access & PIN</a>}</div><div className="settings-grid"><div className="panel setting-card"><h2>Connected group</h2>
       <p><strong>{connectedGroupName}</strong></p><p>Firebase project: <code>{firebaseConfig.projectId}</code></p>
       <p>This group's players, teams, games and history are stored in its own Firestore project.</p>
       <a className="btn secondary" href={modeHref('groups')}>Find another group</a>
@@ -151,9 +158,9 @@ function KioskCheckin({players,here,search,setSearch,matches,showAllPlayers,setS
  </div>
 }
 
-function PlayerModal({player,initialName='',onClose,onSave}:{player:Player|null;initialName?:string;onClose:()=>void;onSave:(p:Player)=>void}){
+function PlayerModal({player,initialName='',onClose,onSave,error}:{player:Player|null;initialName?:string;onClose:()=>void;onSave:(p:Player)=>void;error?:string}){
  const [name,setName]=useState(player?.name??initialName);const [selfSkill,setSelfSkill]=useState(player?.selfSkill??5);const [overrideSkill,setOverrideSkill]=useState<number|null>(player?.overrideSkill??null);const [gender,setGender]=useState<Gender>(player?.gender??'unspecified');const [height,setHeight]=useState<number|null>(player?.height??68);
- return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal large-modal"><div className="modal-head"><div><div className="eyebrow">PLAYER PROFILE</div><h2>{player?'Edit player':'Add new player'}</h2></div><button className="icon-btn" onClick={onClose}><X size={22}/></button></div><form onSubmit={e=>{e.preventDefault();if(!name.trim())return;onSave({id:player?.id??uid(),name:name.trim(),selfSkill,overrideSkill,gender,height,createdAt:player?.createdAt??Date.now()})}}><div className="field"><label htmlFor="name">Player name</label><input id="name" autoFocus maxLength={50} required value={name} placeholder="First name or nickname" onChange={e=>setName(e.target.value)}/></div><div className="field"><label>Choose your indoor 6v6 volleyball skill level</label><div className="skill-list">{SKILLS.map(([level,description],i)=><button key={level} type="button" className={'skill-card '+(selfSkill===i+1?'chosen':'')} onClick={()=>setSelfSkill(i+1)} aria-pressed={selfSkill===i+1}><span className="skill-title"><strong>{level}</strong><span className="skill-indicator">{selfSkill===i+1?<Check size={17}/>:null}</span></span><span className="skill-description">{description}</span></button>)}</div></div>{player&&<div className="field"><label htmlFor="override">Organizer rating override</label><select id="override" value={overrideSkill??''} onChange={e=>setOverrideSkill(e.target.value===''?null:+e.target.value)}><option value="">Use player's original selection</option>{SKILLS.map(([name],i)=><option value={i+1} key={name}>{name}</option>)}</select></div>}<div className="field"><label htmlFor="gender">Gender (optional)</label><select id="gender" value={gender} onChange={e=>setGender(e.target.value as Gender)}><option value="unspecified">Prefer not to say / Not set</option><option value="woman">Woman</option><option value="man">Man</option><option value="other">Another gender</option></select></div><div className="field"><div className="field-title"><label htmlFor="height">Height (optional)</label><strong>{ft(height)}</strong></div><input id="height" type="range" min="36" max="84" step="1" value={height??68} disabled={height===null} onChange={e=>setHeight(+e.target.value)}/><div className="range-ends"><small>3′0″</small><small>7′0″</small></div><label className="checkbox-label small"><input type="checkbox" checked={height===null} onChange={e=>setHeight(e.target.checked?null:68)}/> Prefer not to say</label></div><div className="modal-actions"><button className="btn secondary" type="button" onClick={onClose}>Cancel</button><button className="btn primary" type="submit"><Check size={17}/> Save player</button></div></form></div></div>
+ return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal large-modal"><div className="modal-head"><div><div className="eyebrow">PLAYER PROFILE</div><h2>{player?'Edit player':'Add new player'}</h2></div><button className="icon-btn" onClick={onClose}><X size={22}/></button></div><form onSubmit={e=>{e.preventDefault();if(!name.trim())return;onSave({id:player?.id??uid(),name:name.trim(),selfSkill,overrideSkill,gender,height,createdAt:player?.createdAt??Date.now()})}}><div className="field"><label htmlFor="name">Player name</label><input id="name" autoFocus maxLength={50} required value={name} placeholder="First name or nickname" onChange={e=>setName(e.target.value)}/></div><div className="field"><label>Choose your indoor 6v6 volleyball skill level</label><div className="skill-list">{SKILLS.map(([level,description],i)=><button key={level} type="button" className={'skill-card '+(selfSkill===i+1?'chosen':'')} onClick={()=>setSelfSkill(i+1)} aria-pressed={selfSkill===i+1}><span className="skill-title"><strong>{level}</strong><span className="skill-indicator">{selfSkill===i+1?<Check size={17}/>:null}</span></span><span className="skill-description">{description}</span></button>)}</div></div>{player&&<div className="field"><label htmlFor="override">Organizer rating override</label><select id="override" value={overrideSkill??''} onChange={e=>setOverrideSkill(e.target.value===''?null:+e.target.value)}><option value="">Use player's original selection</option>{SKILLS.map(([name],i)=><option value={i+1} key={name}>{name}</option>)}</select></div>}<div className="field"><label htmlFor="gender">Gender (optional)</label><select id="gender" value={gender} onChange={e=>setGender(e.target.value as Gender)}><option value="unspecified">Prefer not to say / Not set</option><option value="woman">Woman</option><option value="man">Man</option><option value="other">Another gender</option></select></div><div className="field"><div className="field-title"><label htmlFor="height">Height (optional)</label><strong>{ft(height)}</strong></div><input id="height" type="range" min="36" max="84" step="1" value={height??68} disabled={height===null} onChange={e=>setHeight(+e.target.value)}/><div className="range-ends"><small>3′0″</small><small>7′0″</small></div><label className="checkbox-label small"><input type="checkbox" checked={height===null} onChange={e=>setHeight(e.target.checked?null:68)}/> Prefer not to say</label></div>{error&&<p className="fb-error" role="alert">{error}</p>}<div className="modal-actions"><button className="btn secondary" type="button" onClick={onClose}>Cancel</button><button className="btn primary" type="submit"><Check size={17}/> Save player</button></div></form></div></div>
 }
 
 function CloudHealth({mode,status,error}:{mode:'local'|'cloud';status:'local'|'connecting'|'connected'|'saving'|'error';error:string}){
@@ -201,6 +208,73 @@ function Scorekeeper({state,update}:{state:AppState;update:(fn:(draft:AppState)=
 
 function Display({data}:{data:PublicTVData}){const t=data.teams;const games=data.games;const current=games[data.currentGame];return <div className="tv"><div className="tv-top"><div><div className="eyebrow">VOLLEYBALL NIGHT</div><h1>Tonight’s Teams</h1></div><span>{new Date(data.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</span></div><div className="tv-teams">{t.map((team,i)=><div className="tv-team" key={team.id}><div className={'tv-bar c'+i%6}/><h2>{team.name}</h2><div className="tv-people">{team.players.map((name,j)=><div key={j}>{name}</div>)}{Array.from({length:team.subs},(_,j)=><div className="tv-sub" key={j}>SUB</div>)}</div></div>)}</div>{t.length===0&&<div className="tv-empty">Teams will appear here once the organizer confirms them.</div>}<div className="tv-scoreboard">{current?<><div className="tv-score-side"><span>{t[current.a]?.name}</span><strong>{current.scoreA??0}</strong></div><div className="tv-score-mid"><small>GAME {data.currentGame+1}</small><b>:</b><small>TO {current.target??data.scoreTarget??25} · WIN BY 2</small></div><div className="tv-score-side"><span>{t[current.b]?.name}</span><strong>{current.scoreB??0}</strong></div></>:<div className="tv-score-wait">{games.length?'Schedule complete':'Scoreboard ready when the game starts'}</div>}</div><div className="tv-bottom"><div className="tv-status-card"><small>CURRENT GAME</small><h2>{current?`${t[current.a]?.name} vs ${t[current.b]?.name}`:games.length?'Schedule complete':'Waiting for schedule'}</h2><p>{games.length?`Game ${Math.min(data.currentGame+1,games.length)} of ${games.length}`:'Generate a schedule from the organizer view.'}</p></div><div className="tv-status-card"><small>FULL SCHEDULE</small><div className="tv-schedule">{games.length?games.map((g,i)=><div key={g.id} className={'tv-schedule-row '+(i===data.currentGame?'current':'')+(i<data.currentGame?' done':'')}><span>{i+1}</span><div>{t[g.a]?.name} <b>vs</b> {t[g.b]?.name}</div><strong>{i<data.currentGame?'Played':i===data.currentGame?'Current':'Upcoming'}</strong></div>):<div className="tv-schedule-empty">No schedule has been created yet.</div>}</div></div></div><div className="tv-foot">Read-only display · To go fullscreen, use your browser’s fullscreen command</div></div>}
 
+function ProtectedKiosk(){
+ const {players,here,ready,error,toggle,register}=usePublicKiosk();
+ const {data}=usePublicTV();
+ const [search,setSearch]=useState(''),[showAllPlayers,setShowAllPlayers]=useState(false);
+ const [creating,setCreating]=useState(false),[message,setMessage]=useState(''),[modalError,setModalError]=useState('');
+ const matches=players.filter(p=>p.name.toLowerCase().includes(search.trim().toLowerCase()));
+ const notice=(value:string)=>{setMessage(value);window.setTimeout(()=>setMessage(''),4000)};
+ return <>
+  <KioskCheckin players={players} here={here} search={search} setSearch={setSearch}
+   matches={matches} showAllPlayers={showAllPlayers} setShowAllPlayers={setShowAllPlayers}
+   teamsReady={data?.teams.length??0} message={message}
+   onToggleAttendance={id=>{if(!ready)return;void toggle(id).then(()=>{setSearch('');notice('Check-in updated.')}).catch(e=>notice((e as Error).message))}}
+   onCreatePlayer={()=>{setModalError('');setCreating(true)}} onOpenDisplay={()=>goMode('tv')}
+   onOpenScorekeeper={()=>goMode('scorekeeper')} onEnterOrganizer={()=>goMode('organizer')}/>
+  {creating&&<PlayerModal player={null} initialName={search.trim()} error={modalError} onClose={()=>setCreating(false)}
+   onSave={p=>{void register(p).then(()=>{setCreating(false);setSearch('');notice('You’re checked in!')})
+    .catch(e=>setModalError((e as Error).message))}}/>}
+  {error&&<div className="cloud-health cloud-health-error" role="alert">{error}</div>}
+ </>;
+}
+
+function ProtectedTV(){
+ const {data,error}=usePublicTV();
+ return <><ModeSwitch floating/>{data?<Display data={data}/>:<div className="scorekeeper-placeholder"><Monitor size={44}/><h2>TV display waiting</h2><p>{error||'Connecting to your group…'}</p></div>}</>;
+}
+
+function LeaderGate({mode}:{mode:'organizer'|'scorekeeper'}){
+ const [ready,setReady]=useState(false),[signedIn,setSignedIn]=useState(false);
+ const [pin,setPin]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>onAuthStateChanged(firebaseAuth,user=>{
+  setSignedIn(user?.email===leaderEmail(firebaseConfig.projectId));setReady(true);
+ }),[]);
+ const unlock=async(e:React.FormEvent)=>{
+  e.preventDefault();setBusy(true);setError('');
+  try{await enterLeaderMode(pin);setPin('')}
+  catch(err){setError('Incorrect PIN or sign-in unavailable. '+((err as Error)?.message||''))}
+  finally{setBusy(false)}
+ };
+ if(!ready)return <div className="scorekeeper-placeholder">Checking leader access…</div>;
+ if(signedIn)return <App stateHook={useProtectedCloudState} protectedMode/>;
+ return <div className="device-pairing-screen"><div className="device-pairing-card">
+  <div className="eyebrow">VOLLEYBALL NIGHT</div><h1>{mode==='organizer'?'Organizer':'Scorekeeper'} access</h1>
+  <p>Enter this group’s six-digit leader PIN. The group owner sets it with their Google account.</p>
+  <form onSubmit={unlock} className="device-form"><label htmlFor="leader-pin">Leader PIN</label>
+   <input id="leader-pin" autoFocus type="password" inputMode="numeric" pattern="[0-9]{6}"
+    autoComplete="off" maxLength={6} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))}/>
+   <button className="btn primary" disabled={busy||pin.length!==6} type="submit">{busy?'Checking PIN…':'Enter leader mode'}</button>
+  </form>
+  {error&&<p className="fb-error" role="alert">{error}</p>}
+  <ModeSwitch/>
+ </div></div>;
+}
+
+function GroupAppRoutes(){
+ const {status,error}=useProtectionStatus();
+ const mode=new URLSearchParams(location.search).get('mode');
+ if(!activeGroup)return mode||new URLSearchParams(location.search).has('scorekeeper')||new URLSearchParams(location.search).has('display')||new URLSearchParams(location.search).has('publicTv')?<App/>:<ModeHome/>;
+ if(status==='loading')return <div className="scorekeeper-placeholder">Connecting to your group…</div>;
+ if(status==='error')return <div className="scorekeeper-placeholder"><h2>Group connection issue</h2><p>{error}</p></div>;
+ if(mode==='owner-settings')return <OwnerAccess protectedMode={status==='protected'}/>;
+ if(status==='legacy')return mode||new URLSearchParams(location.search).has('scorekeeper')||new URLSearchParams(location.search).has('display')||new URLSearchParams(location.search).has('publicTv')?<App/>:<ModeHome/>;
+ if(mode==='organizer'||mode==='scorekeeper')return <LeaderGate mode={mode}/>;
+ if(mode==='tv'||new URLSearchParams(location.search).has('display')||new URLSearchParams(location.search).has('publicTv'))return <ProtectedTV/>;
+ if(mode==='kiosk')return <ProtectedKiosk/>;
+ return <ModeHome protectedMode/>;
+}
+
 
 
 function InvalidGroupLink(){
@@ -214,14 +288,13 @@ function InvalidGroupLink(){
 }
 const params=new URLSearchParams(location.search);
 const setupMode=params.get('mode');
-if(isIndependentGroupSite&&['setup','groups','manual-setup'].includes(setupMode??''))
- location.replace('https://volleyball-night.web.app/?mode='+setupMode);
+if(isIndependentGroupSite&&['setup','groups','manual-setup','owner-settings'].includes(setupMode??''))
+ location.replace(modeHref(setupMode as 'setup'|'groups'|'manual-setup'|'owner-settings'));
 else
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{
  groupLinkError&&!['setup','manual-setup'].includes(params.get('mode')??'')?<InvalidGroupLink/>:
  params.get('mode')==='setup'?<GoogleSetupPilot/>:
  params.get('mode')==='groups'?<MyGroups/>:
  params.get('mode')==='manual-setup'?<GroupSetup/>:
- params.has('device')?<ModeHome/>:
- params.has('publicTv')||params.has('display')||params.has('scorekeeper')||params.has('mode')?<App/>:<ModeHome/>
+ params.has('device')?<ModeHome/>:<GroupAppRoutes/>
 }</React.StrictMode>);

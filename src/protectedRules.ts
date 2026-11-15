@@ -8,7 +8,8 @@ service cloud.firestore {
      && request.auth.token.auth_time >= get(/databases/$(database)/documents/access/config).data.pinChangedAt;
   }
   match /access/{document} {
-   allow read, write: if false;
+   allow get: if document == 'status';
+   allow list, write: if false;
   }
   match /liveSessions/{sessionId} {
    allow get, update: if sessionId == 'current' && leader();

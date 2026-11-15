@@ -57,7 +57,8 @@ score, history, or access settings.
    a Volleyball Night settings owner.
 3. Seed the new public player and attendance documents from the original
    state, then publish the owner-approved group website version that supports
-   both schemas.
+   both schemas. Run owner Google OAuth from the central site's authorized
+   origin; independent sites redirect there with their public group config.
 4. Publish restrictive Firestore rules and confirm PIN sign-in, public kiosk
    check-in, public TV read, and denied public leader writes in a test group.
    Only then mark the group protected. If activation stops, resume this same
