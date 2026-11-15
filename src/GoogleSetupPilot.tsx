@@ -141,7 +141,9 @@ export function GoogleSetupPilot(){
   if(!checkpointRef.current&&(!name.trim()||!agreed)){
    setError('Enter a group name and accept the setup agreement first.');return;
   }
-  if(checkpointRef.current&&!agreed){
+  // The user's original approval was already given before we reached the
+  // Google Terms handoff. A page reload must not block resuming that step.
+  if(checkpointRef.current&&!agreed&&!needTerms){
    setError('Please confirm the setup agreement before continuing.');return;
   }
   if(!clientId.trim()){
