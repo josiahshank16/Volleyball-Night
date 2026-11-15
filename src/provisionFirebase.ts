@@ -1,6 +1,7 @@
 import {initializeApp,deleteApp} from 'firebase/app';
 import {doc,getDocFromServer,getFirestore,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {initial} from './model';
+import type {SetupNotify} from './setupProgress';
 import {validateGroup,type GroupConnection} from './groupConnection';
 
 /** OAuth token is passed in memory only. Do not save bearer tokens anywhere. */
@@ -33,8 +34,9 @@ const serviceNotActive=(error:unknown)=>statusOf(error)===403 &&
  /(?:has not been used|is disabled|has been disabled|SERVICE_DISABLED|API has not been used)/i.test((error as Error)?.message??'');
 
 
-async function waitFor(base:string,name:string,token:string,notify:(message:string)=>void){
+async function waitFor(base:string,name:string,token:string,notify:SetupNotify){
  for(let i=0;i<90;i++){
+  notify('Checking Google setup operation…',{stage:'cloud',kind:'check'});
   const op=await api<Operation>(`${base}/${name}`,token);
   if(op.done){
    if(op.error)throw new Error('Google setup operation failed: '+(op.error.message??'Unknown error'));
@@ -46,7 +48,7 @@ async function waitFor(base:string,name:string,token:string,notify:(message:stri
  throw new Error('Google accepted the request but has not finished it. You can resume setup with this same project ID; do not create a second project.');
 }
 
-async function addFirebase(projectId:string,token:string,notify:(message:string)=>void){
+async function addFirebase(projectId:string,token:string,notify:SetupNotify){
  const base='https://firebase.googleapis.com/v1beta1';
  try{
   await api(`${base}/projects/${projectId}`,token);
@@ -58,7 +60,7 @@ async function addFirebase(projectId:string,token:string,notify:(message:string)
  if(op.name)await waitFor(base,op.name,token,notify);
  notify('Firebase is enabled.');
 }
-async function enableService(projectId:string,service:string,token:string,notify:(message:string)=>void){
+async function enableService(projectId:string,service:string,token:string,notify:SetupNotify){
  const base='https://serviceusage.googleapis.com/v1';
  notify(`Checking ${service} API…`);
  const url=`${base}/projects/${projectId}/services/${service}`;
@@ -68,7 +70,7 @@ async function enableService(projectId:string,service:string,token:string,notify
  const op=await api<Operation>(url+':enable',token,'POST',{});
  if(op.name)await waitFor(base,op.name,token,notify);
 }
-async function makeFirestore(projectId:string,token:string,locationId:string,notify:(message:string)=>void){
+async function makeFirestore(projectId:string,token:string,locationId:string,notify:SetupNotify){
  const base='https://firestore.googleapis.com/v1';
  const db=`${base}/projects/${projectId}/databases/%28default%29`;
  const url=`${base}/projects/${projectId}/databases?databaseId=%28default%29`;
@@ -76,6 +78,7 @@ async function makeFirestore(projectId:string,token:string,locationId:string,not
  // accepts requests in a newly-created project. Keep the project ID and
  // retry only Google's explicit API-disabled/not-yet-active response.
  for(let attempt=0;attempt<9;attempt++){
+  notify('Checking Cloud Firestore database…',{stage:'cloud',kind:'check'});
   try{
    try{
     await api(db,token);
@@ -116,7 +119,7 @@ service cloud.firestore {
   match /{document=**} {allow read, write: if false;}
  }
 }`;
-async function installRules(projectId:string,token:string,notify:(message:string)=>void){
+async function installRules(projectId:string,token:string,notify:SetupNotify){
  const base='https://firebaserules.googleapis.com/v1';
  const releaseName='projects/'+projectId+'/releases/cloud.firestore';
  // A previous attempt may already have published the correct rules.
@@ -173,7 +176,7 @@ async function installRules(projectId:string,token:string,notify:(message:string
  * Only retry ambiguous permission errors for a limited period. Terms, IAM and
  * other persistent errors still surface with their original details. */
 async function whileGoogleActivates<T>(
- label:string,notify:(message:string)=>void,work:()=>Promise<T>
+ label:string,notify:SetupNotify,work:()=>Promise<T>
 ):Promise<T>{
  const deadline=Date.now()+120_000;
  while(true){
@@ -182,12 +185,12 @@ async function whileGoogleActivates<T>(
    const message=(e as Error)?.message??'';
    const explicitBlock=/terms of service|accept.*terms|TOS_NOT_ACCEPTED|insufficient authentication scopes|billing account|required billing/i.test(message);
    if(statusOf(e)!==403||explicitBlock||Date.now()>=deadline)throw e;
-   notify('Google is preparing '+label+'. This may take a few minutes…');
+   notify('Google is preparing '+label+'. This may take a few minutes…',{stage:'cloud',kind:'check'});
    await pause(6000);
   }
  }
 }
-async function findOrCreateWebApp(projectId:string,token:string,notify:(message:string)=>void):Promise<WebConfig>{
+async function findOrCreateWebApp(projectId:string,token:string,notify:SetupNotify):Promise<WebConfig>{
  const base='https://firebase.googleapis.com/v1beta1';
  let apps=(await api<{apps?:WebApp[]}>(`${base}/projects/${projectId}/webApps`,token)).apps??[];
  let app=apps.find(a=>a.displayName==='Volleyball Night');
@@ -202,7 +205,7 @@ async function findOrCreateWebApp(projectId:string,token:string,notify:(message:
  notify('Retrieving this group’s Firebase web configuration…');
  return await api<WebConfig>(`${base}/${app.name}/config`,token);
 }
-async function seedSession(group:GroupConnection,notify:(message:string)=>void){
+async function seedSession(group:GroupConnection,notify:SetupNotify){
  // New Firestore rules may not affect client reads immediately. Keep
  // checking from the server for a bounded period instead of showing
  // an error after the first few permission-denied responses.
@@ -214,7 +217,11 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
   const deadline=Date.now()+180_000; // Up to three minutes of automatic checking.
   let lastError:unknown=null;
   let failedAt:'read'|'create'='read';
+  let checks=0;
   while(true){
+   checks++;
+   notify('Checking your group’s Firestore connection. This may take a few minutes…',
+    {stage:'firestore',kind:'check',attempt:checks});
    try{
     failedAt='read';
     // Force a server read: cached data alone is not proof of access.
@@ -254,22 +261,29 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
    ' after three minutes of checking. Your project and group setup are saved. Wait another minute or two and select Continue setup with Google to retry; if it still fails, inspect this group’s Firestore security rules. Original error: '+detail);
  }finally{await deleteApp(app).catch(()=>{});}
 }
-export async function completeFirebaseSetup(args:{projectId:string;groupName:string;region:string;token:string;notify:(message:string)=>void}):Promise<GroupConnection>{
+export async function completeFirebaseSetup(args:{projectId:string;groupName:string;region:string;token:string;notify:SetupNotify}):Promise<GroupConnection>{
  const {projectId,groupName,region,token,notify}=args;
  if(!/^vn-[a-z0-9-]{3,54}$/.test(projectId))throw Error('Please use the test project ID previously created by Volleyball Night.');
  await api(`https://cloudresourcemanager.googleapis.com/v3/projects/${projectId}`,token);
+ notify('Checking your group’s Firebase services…',{stage:'cloud',kind:'check'});
  await whileGoogleActivates('Firebase API access',notify,
   ()=>enableService(projectId,'firebase.googleapis.com',token,notify));
+ notify('Firebase API is ready.',{stage:'cloud',kind:'check'});
  await whileGoogleActivates('Firebase activation',notify,
   ()=>addFirebase(projectId,token,notify));
+ notify('Firebase has been enabled.',{stage:'cloud',kind:'check'});
  await whileGoogleActivates('Firestore API access',notify,
   ()=>enableService(projectId,'firestore.googleapis.com',token,notify));
+ notify('Firestore API is ready.',{stage:'cloud',kind:'check'});
  await whileGoogleActivates('Firestore database',notify,
   ()=>makeFirestore(projectId,token,region,notify));
+ notify('Firestore database is ready.',{stage:'cloud',kind:'check'});
  await whileGoogleActivates('Firestore access rules',notify,
   ()=>installRules(projectId,token,notify));
+ notify('Firestore rules were published.',{stage:'cloud',kind:'check'});
  const web=await whileGoogleActivates('web app registration',notify,
   ()=>findOrCreateWebApp(projectId,token,notify));
+ notify('Firebase web application configured.',{stage:'cloud',kind:'check'});
  const group=validateGroup({version:1,name:groupName||projectId,config:web});
  await seedSession(group,notify);
  return group;

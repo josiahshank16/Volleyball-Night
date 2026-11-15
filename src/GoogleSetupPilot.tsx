@@ -3,6 +3,7 @@ import {useRef,useState} from 'react';
 import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,KeyRound,Loader2,RotateCcw,ShieldCheck,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
+import {advanceSetupProgress,CLOUD_CHECK_SLOTS,SETUP_PROGRESS_SLOTS,type SetupProgressEvent} from './setupProgress';
 import {activateGroup,encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
@@ -46,6 +47,22 @@ const progressLabels=['Google account','Group project','Database and workspace',
 function progressOf(step:ProgressStep,active:ProgressStep){
  return step<active?'done':step===active?'active':'future';
 }
+/** The last segment never fills until we have verified a usable Firestore group. */
+function SetupProgressMeter({completedSlots}:{completedSlots:number}){
+ const slots=Math.max(0,Math.min(SETUP_PROGRESS_SLOTS,Math.floor(completedSlots)));
+ return <div className="vn-wizard-meter-wrap">
+  <div className="vn-wizard-meter" role="progressbar"
+   aria-label="Group setup progress"
+   aria-valuemin={0} aria-valuemax={SETUP_PROGRESS_SLOTS} aria-valuenow={slots}
+   aria-valuetext={slots===SETUP_PROGRESS_SLOTS?'Group setup complete':'Group setup is still in progress'}>
+   {Array.from({length:SETUP_PROGRESS_SLOTS},(_,i)=>
+    <span key={i} aria-hidden="true" className={'vn-wizard-meter-unit'+(i<slots?' filled':'')+(i===SETUP_PROGRESS_SLOTS-1?' completion-unit':'')}/>)}
+  </div>
+  <div className="vn-wizard-meter-caption">
+   <span>Cloud workspace</span><span>Connecting database</span>
+  </div>
+ </div>;
+}
 export function GoogleSetupPilot(){
  const initialCheckpoint=readCheckpoint();
  const [checkpoint,setCheckpoint]=useState<SetupCheckpoint|null>(initialCheckpoint);
@@ -58,6 +75,7 @@ export function GoogleSetupPilot(){
  const [showAdvanced,setShowAdvanced]=useState(false);
  const [manualId,setManualId]=useState('');
  const [busy,setBusy]=useState(false);
+ const [progressSlots,setProgressSlots]=useState(()=>initialCheckpoint?.stage==='complete'?SETUP_PROGRESS_SLOTS:initialCheckpoint?.stage==='created'?4:0);
  const busyRef=useRef(false);
  const [authorizing,setAuthorizing]=useState(false);
  const authorizingRef=useRef(false);
@@ -75,7 +93,8 @@ export function GoogleSetupPilot(){
   setCheckpoint(next);
   saveCheckpoint(next);
  }
- function progress(message:string){
+ function progress(message:string,event?:SetupProgressEvent){
+  if(event)setProgressSlots(previous=>advanceSetupProgress(previous,event));
   technicalRef.current=message;
   setTechnical(message);
   const s=message.toLowerCase();
@@ -98,10 +117,12 @@ export function GoogleSetupPilot(){
   // with exactly the same project ID instead of making an unwanted second project.
   remember(current);
   setBusy(true);busyRef.current=true;
+  setProgressSlots(current.stage==='created'?4:0);
   setError('');setNeedTerms(false);setReady(null);setCopied(false);
   try{
    setPhase(1);
-   await ensureCloudProject(current,token,message=>{
+   await ensureCloudProject(current,token,(message,event)=>{
+    if(event)setProgressSlots(previous=>advanceSetupProgress(previous,event));
     technicalRef.current=message;
     setTechnical(message);
     setStatus('Creating your group-owned cloud project…');
@@ -117,6 +138,7 @@ export function GoogleSetupPilot(){
    localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:done.projectId,group}));
    if(localStorage.getItem(TERMS_PENDING_KEY)===done.projectId)localStorage.removeItem(TERMS_PENDING_KEY);
    remember(done);
+   setProgressSlots(SETUP_PROGRESS_SLOTS);
    setReady(group);setPhase(3);setStatus('Your group is ready!');setTechnical('');
   }catch(err){
    const message=(err as Error)?.message||String(err);
@@ -189,7 +211,7 @@ export function GoogleSetupPilot(){
    'Start setting up a DIFFERENT group? This will clear only the saved setup progress in this browser. Any Google Cloud project already created will remain in your Google account.'))return;
   clearCheckpoint();localStorage.removeItem(COMPLETED_KEY);localStorage.removeItem(TERMS_PENDING_KEY);
   checkpointRef.current=null;setCheckpoint(null);setName('');setRegion('us-central1');
-  setAgreed(false);setReady(null);setError('');setNeedTerms(false);setPhase(0);
+  setAgreed(false);setReady(null);setError('');setNeedTerms(false);setPhase(0);setProgressSlots(0);
   setStatus('');setTechnical('');setManualId('');setCopied(false);
  }
  function restoreProject(){
@@ -201,7 +223,7 @@ export function GoogleSetupPilot(){
    'Resume the project '+id+'? Make sure it is the project you created and own. This will replace the saved setup checkpoint in this browser.'))return;
   remember({version:1,projectId:id,groupName:name.trim(),region,stage:'created',updatedAt:Date.now()});
   localStorage.removeItem(TERMS_PENDING_KEY);
-  setNeedTerms(false);setReady(null);setError('');setStatus('Project saved. Continue with Google to finish this group.');
+  setNeedTerms(false);setReady(null);setError('');setProgressSlots(4);setStatus('Project saved. Continue with Google to finish this group.');
   setShowAdvanced(false);
  }
  const groupLink=ready?getShareLink(ready):'';
@@ -263,6 +285,7 @@ export function GoogleSetupPilot(){
         </div>;
        })}
       </div>
+      <SetupProgressMeter completedSlots={progressSlots}/>
       {busy&&<div className="vn-wizard-activity" aria-label="Setup is still running">
        <Loader2 size={35} className="vn-wizard-spinner" aria-hidden="true"/>
       </div>}
@@ -316,6 +339,7 @@ export function GoogleSetupPilot(){
     </div>}
     {ready&&<div className="vn-wizard-success">
       <CheckCircle2 size={48}/>
+      <SetupProgressMeter completedSlots={SETUP_PROGRESS_SLOTS}/>
       <h2>{ready.name}</h2>
       <p>Google Firebase is connected. Your group can start using check-in, teams, scorekeeping, and TV mode.</p>
       <button type="button" className="btn primary" onClick={()=>activateGroup(ready)}>

@@ -1,3 +1,5 @@
+import type {SetupNotify} from './setupProgress';
+
 /** Browser-only project provisioning. Never persist Google access tokens. */
 export type SetupStage='allocated'|'created'|'complete';
 export type SetupCheckpoint={
@@ -66,8 +68,9 @@ async function request<T>(url:string,token:string,method='GET',body?:unknown):Pr
  return payload as T;
 }
 const sleep=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
-async function waitOperation(name:string,token:string,notify:(s:string)=>void){
+async function waitOperation(name:string,token:string,notify:SetupNotify){
  for(let i=0;i<65;i++){
+  notify('Checking Google project creation…',{stage:'cloud',kind:'check'});
   const op=await request<Operation>('https://cloudresourcemanager.googleapis.com/v3/'+name,token);
   if(op.done){
    if(op.error)throw Error('Google could not create the project: '+(op.error.message||'Unknown error'));
@@ -78,11 +81,12 @@ async function waitOperation(name:string,token:string,notify:(s:string)=>void){
  }
  throw Error('Google is still creating your project. Reopen this page and continue with the same project. Do not start another setup.');
 }
-async function waitActive(projectId:string,token:string,notify:(s:string)=>void,afterCreate=false){
+async function waitActive(projectId:string,token:string,notify:SetupNotify,afterCreate=false){
  const url='https://cloudresourcemanager.googleapis.com/v3/projects/'+projectId;
  let lastError:unknown=null;
  for(let i=0;i<32;i++){
   try{
+   notify('Checking your Google Cloud project…',{stage:'cloud',kind:'check'});
    const project=await request<GoogleProject>(url,token);
    if(project.state==='ACTIVE'||!project.state)return;
    if(project.state==='DELETE_REQUESTED')throw Error('This project is scheduled for deletion in Google Cloud. It cannot be used for a new group.');
@@ -102,9 +106,9 @@ async function waitActive(projectId:string,token:string,notify:(s:string)=>void,
  throw Error('Google has not finished creating this project yet. Return to this page to resume the same project ID; do not create another.');
 }
 /** New checkpoints POST first; saved created projects are only read, never recreated. */
-export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string,notify:(s:string)=>void){
+export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string,notify:SetupNotify){
  if(checkpoint.stage!=='allocated'){
-  notify('Checking your saved group project…');
+  notify('Checking your saved group project…',{stage:'cloud',kind:'check'});
   await waitActive(checkpoint.projectId,token,notify);
   notify('Your group project is ready.');
   return;
@@ -114,7 +118,7 @@ export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string
  // projects.create with our pre-allocated, persisted ID straight away.
  // If a prior POST succeeded and the browser closed, the retry receives
  // a conflict (409) and simply waits to read the SAME project.
- notify('Creating your group-owned Google Cloud project…');
+ notify('Creating your group-owned Google Cloud project…',{stage:'cloud',kind:'check'});
  let operation:Operation|undefined;
  try{
   operation=await request<Operation>('https://cloudresourcemanager.googleapis.com/v3/projects',token,'POST',{
