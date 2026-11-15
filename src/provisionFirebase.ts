@@ -149,7 +149,14 @@ async function installRules(projectId:string,token:string,notify:(message:string
   if(statusOf(e)!==404)throw e;
   await api(`${base}/projects/${projectId}/releases`,token,'POST',{name:releaseName,rulesetName:ruleset.name});
  }
- notify('Firestore rules published.');
+ // Firebase's release API can accept a request before the effective rules
+ // are available to Firestore. Verify that the release actually points to
+ // the ruleset we just published before testing the browser SDK.
+ const live=await api<{rulesetName?:string}>(`${base}/${releaseName}`,token);
+ if(live.rulesetName!==ruleset.name){
+  throw new Error(`Firestore rules publication did not activate the expected ruleset for project ${projectId}. Expected ${ruleset.name}, got ${live.rulesetName??'no ruleset'}. Continue the SAME group setup to retry.`);
+ }
+ notify('Firestore rules release verified. Waiting for Firestore to apply it…');
 }
 async function findOrCreateWebApp(projectId:string,token:string,notify:(message:string)=>void):Promise<WebConfig>{
  const base='https://firebase.googleapis.com/v1beta1';
@@ -167,27 +174,50 @@ async function findOrCreateWebApp(projectId:string,token:string,notify:(message:
  return await api<WebConfig>(`${base}/${app.name}/config`,token);
 }
 async function seedSession(group:GroupConnection,notify:(message:string)=>void){
- notify('Testing the new Firestore connection and initializing a blank group…');
+ // This is a REAL CLIENT SDK check. Admin access to the Cloud project
+ // does not bypass Firestore security rules in the browser. A successful
+ // ruleset publish may take a minute to propagate to new client reads.
+ notify('Verifying Firestore access and initializing your first empty session…');
  const app=initializeApp(group.config,'new-group-test-'+crypto.randomUUID());
  try{
   const db=getFirestore(app);
   const ref=doc(db,'liveSessions','current');
-  for(let attempt=0;attempt<5;attempt++){
+  let lastPermissionError:unknown=null;
+  let failedAt:'read'|'create'='read';
+  const attempts=18; // ~65+ seconds of retries; Google's rules may take a minute.
+  for(let attempt=0;attempt<attempts;attempt++){
    try{
+    failedAt='read';
     const snap=await getDoc(ref);
     if(snap.exists()){notify('An existing session was found and preserved.');return;}
+    failedAt='create';
     await runTransaction(db,async tx=>{
      const current=await tx.get(ref);
-     if(!current.exists())tx.set(ref,{schemaVersion:1,payload:{json:JSON.stringify(initial())},updatedAt:serverTimestamp(),updatedBy:'open-prototype'});
+     if(!current.exists())tx.set(ref,{
+      schemaVersion:1,payload:{json:JSON.stringify(initial())},
+      updatedAt:serverTimestamp(),updatedBy:'open-prototype'
+     });
     });
+    // Verify client visibility. Never claim success for an unusable group.
+    failedAt='read';
+    const created=await getDoc(ref);
+    if(!created.exists())throw Error('Firestore wrote the session but could not read it back. Retry this same group.');
     notify('Your empty Volleyball Night session is ready!');
     return;
    }catch(err){
-    if(attempt===4)throw err;
-    notify('Waiting for Firestore rules to become active…');
-    await pause(2000*(attempt+1));
+    const error=err as {code?:string;message?:string};
+    const retryable=error.code==='permission-denied'||error.code==='unavailable';
+    if(!retryable){
+     throw new Error(\`Firestore \${failedAt==='read'?'read':'session creation'} failed in \${group.config.projectId}: \${error.message??String(err)}\`);
+    }
+    lastPermissionError=err;
+    if(attempt===attempts-1)break;
+    notify(\`Waiting for Firestore client access rules to activate… (\${attempt+1}/\${attempts})\`);
+    await pause(4000);
    }
   }
+  const detail=(lastPermissionError as {message?:string})?.message??'Access denied';
+  throw new Error(\`Firestore client \${failedAt==='read'?'READ':'CREATE'} permission was denied for liveSessions/current in \${group.config.projectId}, even after waiting for the new rules. The group's Cloud project and published rules were preserved. Open the Firebase Console → Firestore Database → Rules for THIS project and confirm that the rules allow get and create on liveSessions/current. Then continue setup using the same project. Original error: \${detail}\`);
  }finally{await deleteApp(app).catch(()=>{});}
 }
 export async function completeFirebaseSetup(args:{projectId:string;groupName:string;region:string;token:string;notify:(message:string)=>void}):Promise<GroupConnection>{

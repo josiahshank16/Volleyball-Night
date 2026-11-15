@@ -189,7 +189,11 @@ export function GoogleSetupPilot(){
   setShowAdvanced(false);
  }
  const groupLink=ready?getShareLink(ready):'';
- const permissionIssue=!needTerms&&/permission|403|access denied/i.test(error);
+ const firestoreClientIssue=!needTerms&&(
+  /Firestore client|Missing or insufficient permissions|permission-denied|liveSessions\/current/i.test(error)||
+  /Waiting for Firestore rules to become active|Waiting for Firestore client access rules|Verifying Firestore access/i.test(technical)
+ );
+ const permissionIssue=!needTerms&&!firestoreClientIssue&&/permission|403|access denied/i.test(error);
  const rulesStep=/rules|firebaserules/i.test(technical)||/Firebase Rules/i.test(error);
  const subtitle=ready?'Everything is connected. Your players and games are stored in your group’s own Firebase project.':
   checkpoint?'Your group setup is saved and will continue without creating another project.':
@@ -245,15 +249,20 @@ export function GoogleSetupPilot(){
       {status&&<p className="vn-wizard-status">{status}</p>}
      </div>}
     {error&&<div className="vn-wizard-error" role="alert">
-      <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
+      <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':firestoreClientIssue?'Firestore access is not ready':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
       <p>{needTerms?
        'Google specifically requested Firebase Terms acceptance. Open the official Firebase Console, accept its terms, then continue this saved setup.':
+       firestoreClientIssue?
+       'Your Cloud project has been created, but the Volleyball Night browser cannot yet read or initialize its first Firestore session. This is a Firestore security-rules access issue, not automatically a problem with your Google account permissions. Your existing project is saved.':
        permissionIssue?
-       'Google denied a project API request. This does not necessarily mean you need to accept Firebase terms. Check that you authorized the Google account which owns this project, and review the API access or project permissions. Your project ID is saved, so retrying will not create another project.':
+       'Google denied a project API request. Check that you authorized the Google account that owns this project and review that API or its permissions. Your existing project is saved, so retrying will not create another project.':
        'Your existing project has been remembered. You can continue with the same Google account without creating another project.'}</p>
       {needTerms&&<a className="btn secondary" href={FIREBASE_TERMS_URL} target="_blank" rel="noreferrer">
        Accept Firebase terms in Google Console <ExternalLink size={16}/>
       </a>}
+      {firestoreClientIssue&&checkpoint&&<div className="vn-wizard-help-links">
+       <a href={`https://console.firebase.google.com/project/${checkpoint.projectId}/firestore/rules`} target="_blank" rel="noreferrer">Inspect the active Firestore rules <ExternalLink size={15}/></a>
+      </div>}
       {permissionIssue&&checkpoint&&<div className="vn-wizard-help-links">
        {rulesStep&&<a href={`https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project=${checkpoint.projectId}`} target="_blank" rel="noreferrer">Check Firebase Rules API <ExternalLink size={15}/></a>}
        <a href={`https://console.cloud.google.com/iam-admin/iam?project=${checkpoint.projectId}`} target="_blank" rel="noreferrer">Review project permissions <ExternalLink size={15}/></a>
