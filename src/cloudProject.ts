@@ -118,7 +118,9 @@ export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string
  let operation:Operation|undefined;
  try{
   operation=await request<Operation>('https://cloudresourcemanager.googleapis.com/v3/projects',token,'POST',{
-   projectId:checkpoint.projectId,displayName:'Volleyball Night - '+checkpoint.groupName.slice(0,50)
+   // Google Cloud project display names are limited to 30 characters.
+   // The full, user-entered group name is retained in the group's app settings.
+   projectId:checkpoint.projectId,displayName:'VN - '+Array.from(checkpoint.groupName.trim()).slice(0,25).join('')
   });
  }catch(err){
   if(!(err instanceof GoogleApiError)||err.status!==409)throw err;
