@@ -121,7 +121,24 @@ async function installRules(projectId:string,token:string,notify:(message:string
  notify('Creating Volleyball Night Firestore rules…');
  // Rulesets are immutable. In the prototype, repeating this step can
  // create a new ruleset but safely updates only THIS group's release.
- const ruleset=await api<{name:string}>(`${base}/projects/${projectId}/rulesets`,token,'POST',{source:{files:[{name:'firestore.rules',content:RULES_SOURCE}]}});
+ let ruleset:{name:string}|undefined;
+ for(let attempt=0;attempt<5;attempt++){
+  try{
+   ruleset=await api<{name:string}>(`${base}/projects/${projectId}/rulesets`,token,'POST',{source:{files:[{name:'firestore.rules',content:RULES_SOURCE}]}});
+   break;
+  }catch(e){
+   // Google may still be activating Rules after projects.addFirebase.
+   // Retry only a *specific* API-not-enabled response, not general 403
+   // permission errors (those need IAM/account troubleshooting).
+   if(!serviceNotActive(e))throw e;
+   if(attempt===4){
+    throw new Error(`Google still reports Firebase Rules API as disabled in project ${projectId}. Open https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project=${projectId}, enable it if necessary, then continue the SAME group setup. Details: ${(e as Error).message}`);
+   }
+   notify('Google is activating Firebase Rules for this project. Retrying automatically…');
+   await pause(2000*(attempt+1));
+  }
+ }
+ if(!ruleset)throw Error('Google did not create a Firestore ruleset.');
  if(!ruleset.name)throw Error('Google did not return a Firestore ruleset name.');
  const releaseName=`projects/${projectId}/releases/cloud.firestore`;
  notify('Publishing the Firestore rules in your new project…');
@@ -180,7 +197,10 @@ export async function completeFirebaseSetup(args:{projectId:string;groupName:str
  await enableService(projectId,'firebase.googleapis.com',token,notify);
  await addFirebase(projectId,token,notify);
  await enableService(projectId,'firestore.googleapis.com',token,notify);
- await enableService(projectId,'firebaserules.googleapis.com',token,notify);
+ // Google's projects.addFirebase enables the Firebase Rules API itself.
+ // A redundant Service Usage GET against firebaserules.googleapis.com can
+ // return a misleading 403 in newly provisioned projects, even though
+ // addFirebase succeeded. Check the rules service by USING it instead.
  await makeFirestore(projectId,token,region,notify);
  await installRules(projectId,token,notify);
  const web=await findOrCreateWebApp(projectId,token,notify);

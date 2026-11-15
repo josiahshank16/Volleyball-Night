@@ -116,9 +116,9 @@ export function GoogleSetupPilot(){
   }catch(err){
    const message=(err as Error)?.message||String(err);
    setError(message);
-   const firebaseStep=/firebase|adding firebase|firebase.googleapis.com/i.test(technicalRef.current);
-   setNeedTerms(/terms of service|firebase terms|accept.*terms|\btos\b/i.test(message)||
-    (message.includes('403')&&firebaseStep));
+   // A generic 403 is NOT proof that Firebase Terms haven't been accepted.
+   // Google also uses 403 for disabled APIs and IAM permissions.
+   setNeedTerms(/terms of service|firebase terms|accept.*terms|\btos\b|TOS_NOT_ACCEPTED/i.test(message));
    setStatus('Setup paused. Your progress is saved; continuing will reuse the same project.');
   }finally{busyRef.current=false;setBusy(false);}
  }
@@ -189,6 +189,8 @@ export function GoogleSetupPilot(){
   setShowAdvanced(false);
  }
  const groupLink=ready?getShareLink(ready):'';
+ const permissionIssue=!needTerms&&/permission|403|access denied/i.test(error);
+ const rulesStep=/rules|firebaserules/i.test(technical)||/Firebase Rules/i.test(error);
  const subtitle=ready?'Everything is connected. Your players and games are stored in your group’s own Firebase project.':
   checkpoint?'Your group setup is saved and will continue without creating another project.':
   'Create a separate cloud workspace for your volleyball group. No GitHub account or manual Firebase configuration needed.';
@@ -243,11 +245,19 @@ export function GoogleSetupPilot(){
       {status&&<p className="vn-wizard-status">{status}</p>}
      </div>}
     {error&&<div className="vn-wizard-error" role="alert">
-      <div><AlertCircle size={20}/><strong>{needTerms?'Google needs one more account step':'We couldn’t finish that step'}</strong></div>
-      <p>{needTerms?'If this is your first Firebase project, Google may require you to accept its official Firebase Terms of Service in the Firebase Console. You only do this once per Google account. A 403 can also mean your account lacks project permissions.':'Your existing project has been remembered. You can continue with the same Google account without creating another project.'}</p>
+      <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
+      <p>{needTerms?
+       'Google specifically requested Firebase Terms acceptance. Open the official Firebase Console, accept its terms, then continue this saved setup.':
+       permissionIssue?
+       'Google denied a project API request. This does not necessarily mean you need to accept Firebase terms. Check that you authorized the Google account which owns this project, and review the API access or project permissions. Your project ID is saved, so retrying will not create another project.':
+       'Your existing project has been remembered. You can continue with the same Google account without creating another project.'}</p>
       {needTerms&&<a className="btn secondary" href={FIREBASE_TERMS_URL} target="_blank" rel="noreferrer">
        Accept Firebase terms in Google Console <ExternalLink size={16}/>
       </a>}
+      {permissionIssue&&checkpoint&&<div className="vn-wizard-help-links">
+       {rulesStep&&<a href={`https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project=${checkpoint.projectId}`} target="_blank" rel="noreferrer">Check Firebase Rules API <ExternalLink size={15}/></a>}
+       <a href={`https://console.cloud.google.com/iam-admin/iam?project=${checkpoint.projectId}`} target="_blank" rel="noreferrer">Review project permissions <ExternalLink size={15}/></a>
+      </div>}
       <details><summary>Technical error details</summary><pre>{error}</pre>{technical&&<p>Last operation: {technical}</p>}</details>
     </div>}
     {ready&&<div className="vn-wizard-success">
