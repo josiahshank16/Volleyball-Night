@@ -252,7 +252,7 @@ export function GoogleSetupPilot(){
       {status&&<p className="vn-wizard-status">{status}</p>}
       {busy&&/still activating|still finishing|waiting for|checking automatically|may take a few minutes|retrying automatically/i.test(technical)&&
        <p className="vn-wizard-substatus">{technical}</p>}
-     </div>
+     </div>}
     {error&&<div className="vn-wizard-error" role="alert">
       <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':firestoreClientIssue?'Firestore access is not ready':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
       <p>{needTerms?
