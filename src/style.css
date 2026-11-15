@@ -149,3 +149,25 @@
 .group-setup-current .group-setup-muted{display:flex;align-items:center;gap:8px}
 .group-setup-main>.group-setup-card .btn{display:inline-flex;margin:7px 9px 7px 0}
 @media(max-width:600px){.group-setup-bar{align-items:flex-start;flex-direction:column}.group-setup-card{padding:17px}.group-setup-step{grid-template-columns:30px minmax(0,1fr);gap:9px}.group-setup-step>span{width:29px;height:29px}.group-setup-step h2{font-size:18px}}
+
+/* Experimental Google OAuth provisioning flow */
+.oauth-pilot-card{max-width:730px;margin:0 auto}
+.oauth-agreement{display:flex;align-items:flex-start;gap:11px;padding:15px;background:#f3f7f8;border-radius:11px;font-size:13px;color:#4a6877;line-height:1.55;cursor:pointer}
+.oauth-agreement input{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+.oauth-google-button{margin-top:16px;min-height:46px}
+.oauth-status{margin-top:17px;color:#31576a;font-size:13px;display:flex;align-items:center;gap:7px;line-height:1.5}
+.oauth-status svg{animation:spin 1s linear infinite}
+.oauth-error{display:flex;align-items:flex-start;gap:9px;margin-top:15px}
+.oauth-error svg{flex-shrink:0}
+.oauth-settings-toggle{background:none;border:none;color:#147d6b;cursor:pointer;padding:2px;font-weight:750;font-size:13px}
+.oauth-instructions{width:100%;margin:4px 0 0}
+.oauth-instructions ol{padding-left:21px;line-height:1.7;font-size:13px}
+.oauth-instructions li{padding:3px 0;color:#526b7c}
+.oauth-instructions code{white-space:normal;overflow-wrap:anywhere}
+.oauth-instructions label{font-size:13px;font-weight:720}
+.oauth-instructions input{display:block;width:100%;border-radius:9px;border:1px solid #bacdd9;padding:11px;font-size:12px;margin:8px 0}
+.oauth-instructions a,.oauth-back-link a{color:#177c6c;font-weight:650}
+.oauth-instructions a{display:inline-flex;align-items:center;gap:4px}
+.oauth-back-link{color:#597485;font-size:13px;text-align:center;margin:18px}
+.oauth-pilot-card .group-setup-ready h3{display:flex;align-items:center;gap:9px}
+@keyframes spin{to{transform:rotate(360deg)}}

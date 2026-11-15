@@ -44,3 +44,9 @@ generates a group link to use on other devices. Each group owns its
 data and Firestore usage, while sharing the same hosted UI.
 
 See [GROUP-SETUP.md](GROUP-SETUP.md) for exact setup and testing steps.
+
+## Experimental Google one-click group setup
+
+The first OAuth experiment is available from the home screen, or at `/?mode=setup`. It tests Google authorization, Google Cloud project-management API access and (after explicit confirmation) creating an independent test Google Cloud project. It does **not** yet add Firebase/Firestore automatically. The original manual Firebase connection wizard is now available at `/?mode=manual-setup`.
+
+See [GOOGLE-OAUTH-EXPERIMENT.md](GOOGLE-OAUTH-EXPERIMENT.md) for the one-time developer OAuth client configuration and test instructions.
