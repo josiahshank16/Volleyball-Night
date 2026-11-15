@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import {useRef,useState} from 'react';
-import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,Globe2,KeyRound,Loader2,RotateCcw,ShieldCheck,Volleyball} from 'lucide-react';
+import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,FolderOpen,Globe2,KeyRound,Loader2,RotateCcw,ShieldCheck,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
 import {installIndependentGroupWebsite} from './hostingInstaller';
@@ -299,6 +299,7 @@ export function GoogleSetupPilot(){
    <div className="group-setup-heading"><span className="eyebrow">SET UP YOUR GROUP</span>
     <h1>{ready?'Your group is ready!':checkpoint?'Finish your group setup':'Welcome to Volleyball Night'}</h1>
     <p>{subtitle}</p>
+    <a className="vn-my-groups-create" href="/?mode=groups"><FolderOpen size={16}/> Already have a group? Find my groups</a>
    </div>
    <section className="group-setup-card vn-wizard-card">
     {!ready&&!needTerms&&<>

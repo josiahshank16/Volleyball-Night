@@ -5,6 +5,7 @@ import {AppState,Player,SKILLS,uid,ft,skill,newSession,samplePlayers,configs,gen
 import {ModeHome,ModeSwitch,goMode,modeHref} from './ModeHome';
 import {GroupSetup} from './GroupSetup';
 import {GoogleSetupPilot} from './GoogleSetupPilot';
+import {MyGroups} from './MyGroups';
 import {connectedGroupName,firebaseConfig} from './firebase';
 import {groupLinkError,useOriginalGroup} from './groupConnection';
 import {useCloudState} from './cloudState';
@@ -193,6 +194,7 @@ const params=new URLSearchParams(location.search);
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{
  groupLinkError&&!['setup','manual-setup'].includes(params.get('mode')??'')?<InvalidGroupLink/>:
  params.get('mode')==='setup'?<GoogleSetupPilot/>:
+ params.get('mode')==='groups'?<MyGroups/>:
  params.get('mode')==='manual-setup'?<GroupSetup/>:
  params.has('device')?<ModeHome/>:
  params.has('publicTv')||params.has('display')||params.has('scorekeeper')||params.has('mode')?<App/>:<ModeHome/>
