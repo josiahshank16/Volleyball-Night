@@ -34,13 +34,22 @@ function App(){
  const validChoice=patterns.find(v=>configKey(v)===selectedConfig)??patterns[0];
  const roster=state.session.draft.length?state.session.draft:state.session.confirmed;
  function flash(msg:string){setMessage(msg);window.setTimeout(()=>setMessage(''),3200)}
- function toggleAttendance(id:string){update(s=>{const a=s.session.checkedIn;s.session.checkedIn=a.includes(id)?a.filter(v=>v!==id):[...a,id];s.session.draft=[];s.session.confirmed=[];s.session.games=[];s.session.rounds=[];s.session.currentGame=0;s.session.confirmedAt=null});}
- function makeTeams(){if(!validChoice)return;try{update(s=>{const attending=s.players.filter(p=>s.session.checkedIn.includes(p.id));s.session.draft=generate(attending,validChoice,s.history,s.session.draft);s.session.confirmed=[];s.session.games=[];s.session.currentGame=0;s.session.confirmedAt=null});flash('Teams generated. Review before confirming.')}catch(e){flash(String(e))}}
+ function confirmReplaceGames(){
+  return !state.session.games.length||window.confirm('This will replace the current game schedule and scores. Completed team lineups remain in history. Continue?');
+ }
+ function toggleAttendance(id:string){const saved=update(s=>{
+  const a=s.session.checkedIn;
+  s.session.checkedIn=a.includes(id)?a.filter(v=>v!==id):[...a,id];
+  // A draft is based on the old attendance. Confirmed teams and live scores
+  // must remain intact when someone checks in late or leaves early.
+  s.session.draft=[];
+ });if(saved&&state.session.confirmed.length)flash('Attendance updated. Existing teams and scores stay in place.');}
+ function makeTeams(){if(!validChoice||!confirmReplaceGames())return;try{update(s=>{const attending=s.players.filter(p=>s.session.checkedIn.includes(p.id));s.session.draft=generate(attending,validChoice,s.history,s.session.draft);s.session.confirmed=[];s.session.games=[];s.session.currentGame=0;s.session.confirmedAt=null});flash('Teams generated. Review before confirming.')}catch(e){flash(String(e))}}
  function regenerate(){const sizes=state.session.draft.map(t=>t.playerIds.length);if(!sizes.length)return;update(s=>{const attending=s.players.filter(p=>s.session.checkedIn.includes(p.id));s.session.draft=generate(attending,sizes,s.history,s.session.draft)});flash('New team arrangement generated.')}
  function confirm(){if(!state.session.draft.length)return;update(s=>{const confirmed=copy(s.session.draft);s.session.confirmed=confirmed;s.session.confirmedAt=Date.now();const round={id:uid(),at:Date.now(),rosters:copy(confirmed)};s.session.rounds.push(round);s.history.push({sessionId:s.session.id,roundId:round.id,at:round.at,teams:confirmed.map(r=>[...r.playerIds])});s.session.games=[];s.session.currentGame=0});flash('Confirmed. This lineup is saved in team history.')}
- function adjustTeam(team:number,subChange:number){update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const t=s.session.draft[team];t.subs=Math.max(0,t.subs+subChange);s.session.confirmed=[];s.session.games=[]});}
- function pickPlayer(team:number,id:string){if(!swap){setSwap({team,id});return}if(swap.id===id){setSwap(null);return}update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const a=s.session.draft[swap.team],b=s.session.draft[team];const ai=a.playerIds.indexOf(swap.id),bi=b.playerIds.indexOf(id);if(ai!==-1&&bi!==-1){[a.playerIds[ai],b.playerIds[bi]]=[b.playerIds[bi],a.playerIds[ai]];s.session.confirmed=[];s.session.games=[]}});setSwap(null);flash('Players swapped. Confirm the adjusted teams.');}
- function movePlayer(id:string,from:number,to:number){if(from===to)return;update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const src=s.session.draft[from],dst=s.session.draft[to];if(dst.playerIds.length>=8)return;src.playerIds=src.playerIds.filter(p=>p!==id);dst.playerIds.push(id);s.session.confirmed=[];s.session.games=[]});setSwap(null)}
+ function adjustTeam(team:number,subChange:number){if(!confirmReplaceGames())return;update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const t=s.session.draft[team];t.subs=Math.max(0,t.subs+subChange);s.session.confirmed=[];s.session.games=[]});}
+ function pickPlayer(team:number,id:string){if(!swap){setSwap({team,id});return}if(swap.id===id){setSwap(null);return}if(!confirmReplaceGames()){setSwap(null);return}update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const a=s.session.draft[swap.team],b=s.session.draft[team];const ai=a.playerIds.indexOf(swap.id),bi=b.playerIds.indexOf(id);if(ai!==-1&&bi!==-1){[a.playerIds[ai],b.playerIds[bi]]=[b.playerIds[bi],a.playerIds[ai]];s.session.confirmed=[];s.session.games=[]}});setSwap(null);flash('Players swapped. Confirm the adjusted teams.');}
+ function movePlayer(id:string,from:number,to:number){if(from===to||!confirmReplaceGames())return false;const saved=update(s=>{if(!s.session.draft.length)s.session.draft=copy(s.session.confirmed);const src=s.session.draft[from],dst=s.session.draft[to];if(dst.playerIds.length>=8)return;src.playerIds=src.playerIds.filter(p=>p!==id);dst.playerIds.push(id);s.session.confirmed=[];s.session.games=[]});if(saved)setSwap(null);return saved}
  function dropPlayer(e:DragEndEvent){
   const active=String(e.active.id),target=String(e.over?.id??'');
   if(!active.startsWith('player:')||!target.startsWith('team:'))return;
@@ -48,21 +57,33 @@ function App(){
   const from=roster.findIndex(t=>t.playerIds.includes(id));
   if(from<0||!Number.isInteger(to)||to<0||to>=roster.length||from===to)return;
   if(roster[to].playerIds.length>=8){flash('That team already has eight players.');return;}
-  movePlayer(id,from,to);flash('Player moved. Confirm the adjusted teams when ready.');
+  if(movePlayer(id,from,to))flash('Player moved. Confirm the adjusted teams when ready.');
  }
- function createSchedule(){if(state.session.confirmed.length<2)return;update(s=>{s.session.games=buildGames(s.session.confirmed.length,cycles,fullFour);s.session.currentGame=0});flash('Game schedule created.')}
+ function createSchedule(){if(state.session.confirmed.length<2||!confirmReplaceGames())return;update(s=>{s.session.games=buildGames(s.session.confirmed.length,cycles,fullFour);s.session.currentGame=0});flash('Game schedule created.')}
  function newNight(){if(!window.confirm('Start a new volleyball night? Attendance, teams, and tonight’s schedule will reset. Player profiles and saved team history will remain.'))return;update(s=>{s.session=newSession()});setPage('checkin');flash('New session started.')}
- function upsertPlayer(p:Player){update(s=>{const idx=s.players.findIndex(q=>q.id===p.id);if(idx===-1)s.players.push(p);else s.players[idx]=p;});setEditing(null);setCreating(false);flash('Player saved.')}
- function removePlayer(id:string){if(!window.confirm('Delete this player profile? Historical team records will retain its old ID, but the player name will no longer be available.'))return;update(s=>{s.players=s.players.filter(p=>p.id!==id);s.session.checkedIn=s.session.checkedIn.filter(v=>v!==id);s.session.draft=[];s.session.confirmed=[];s.session.games=[]})}
+ function upsertPlayer(p:Player){
+  const saved=update(s=>{
+   const idx=s.players.findIndex(q=>q.id===p.id);
+   if(idx===-1){
+    s.players.push(p);
+    // A player registered at the check-in kiosk is here to play tonight.
+    if(!organizer){s.session.checkedIn.push(p.id);s.session.draft=[];}
+   }else s.players[idx]=p;
+  });
+  if(!saved)return;
+  setEditing(null);setCreating(false);setSearch('');
+  flash(organizer?'Player saved.':state.session.confirmed.length?'You’re checked in! Existing teams and scores stay in place.':'You’re checked in!');
+ }
+ function removePlayer(id:string){if(!window.confirm('Delete this player profile? Current teams, schedule, and scores will be cleared. Historical team records keep the old player ID.'))return;update(s=>{s.players=s.players.filter(p=>p.id!==id);s.session.checkedIn=s.session.checkedIn.filter(v=>v!==id);s.session.draft=[];s.session.confirmed=[];s.session.games=[]})}
  const openDisplay=()=>goMode('tv');
  const openScorekeeper=()=>goMode('scorekeeper');
  const viewDisplay=new URLSearchParams(location.search).get('mode')==='tv'||new URLSearchParams(location.search).has('display')||new URLSearchParams(location.search).has('publicTv');
  if(viewDisplay)return <><ModeSwitch floating/><Display data={toPublicTV({...state,publicTVEnabled:true})}/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/></>;
  if(new URLSearchParams(location.search).get('mode')==='scorekeeper'||new URLSearchParams(location.search).has('scorekeeper'))return <><ModeSwitch floating/><Scorekeeper state={state} update={update}/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/></>;
  if(!organizer)return <>
-  <KioskCheckin players={players} here={here} search={search} setSearch={setSearch} matches={searchMatches} showAllPlayers={showAllPlayers} setShowAllPlayers={setShowAllPlayers}
+  <KioskCheckin players={players} here={here} search={search} setSearch={setSearch} matches={searchMatches} showAllPlayers={showAllPlayers} setShowAllPlayers={setShowAllPlayers} message={message}
     teamsReady={state.session.confirmed.length} onToggleAttendance={toggleAttendance} onCreatePlayer={()=>{setEditing(null);setCreating(true)}} onOpenDisplay={openDisplay} onOpenScorekeeper={openScorekeeper} onEnterOrganizer={()=>goMode('organizer')}/>
-  {(creating||editing)&&<PlayerModal player={editing} onClose={()=>{setCreating(false);setEditing(null)}} onSave={upsertPlayer}/>}
+  {(creating||editing)&&<PlayerModal player={editing} initialName={search.trim()} onClose={()=>{setCreating(false);setEditing(null)}} onSave={upsertPlayer}/>}
   <CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/>
  </>;
  return <div className="app">
@@ -95,7 +116,7 @@ function App(){
 function Nav({icon,name,active,click}:{icon:React.ReactNode;name:string;active:boolean;click:()=>void}){return <button className={'nav '+(active?'active':'')} onClick={click}>{icon}<span>{name}</span>{active&&<ChevronRight size={16}/>}</button>}
 function Stat({label,value,icon,accent}:{label:string;value:number;icon:React.ReactNode;accent?:boolean}){return <div className={'stat '+(accent?'accent':'')}><div><span>{label}</span><strong>{value}</strong></div><div className="stat-icon">{icon}</div></div>}
 
-function KioskCheckin({players,here,search,setSearch,matches,showAllPlayers,setShowAllPlayers,teamsReady,onToggleAttendance,onCreatePlayer,onOpenDisplay,onOpenScorekeeper,onEnterOrganizer}:{players:Player[];here:Player[];search:string;setSearch:(v:string)=>void;matches:Player[];showAllPlayers:boolean;setShowAllPlayers:(v:boolean)=>void;teamsReady:number;onToggleAttendance:(id:string)=>void;onCreatePlayer:()=>void;onOpenDisplay:()=>void;onOpenScorekeeper:()=>void;onEnterOrganizer:()=>void}){
+function KioskCheckin({players,here,search,setSearch,matches,showAllPlayers,setShowAllPlayers,teamsReady,message,onToggleAttendance,onCreatePlayer,onOpenDisplay,onOpenScorekeeper,onEnterOrganizer}:{players:Player[];here:Player[];search:string;setSearch:(v:string)=>void;matches:Player[];showAllPlayers:boolean;setShowAllPlayers:(v:boolean)=>void;teamsReady:number;message:string;onToggleAttendance:(id:string)=>void;onCreatePlayer:()=>void;onOpenDisplay:()=>void;onOpenScorekeeper:()=>void;onEnterOrganizer:()=>void}){
  const [menuOpen,setMenuOpen]=useState(false);
  const keyboardRows=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];
  const checked=new Set(here.map(p=>p.id));
@@ -111,6 +132,7 @@ function KioskCheckin({players,here,search,setSearch,matches,showAllPlayers,setS
    <p>Open design preview</p>
   </div>}
   <div className="kiosk-inner">
+   {message&&<div className="kiosk-flash" role="status"><CircleCheck size={18}/>{message}</div>}
    <div className="kiosk-hero">
     <div className="eyebrow">WELCOME TO THE COURT</div><h1>Who's playing tonight?</h1>
     <p>Search for your name and tap it to check in.</p>
@@ -129,8 +151,8 @@ function KioskCheckin({players,here,search,setSearch,matches,showAllPlayers,setS
  </div>
 }
 
-function PlayerModal({player,onClose,onSave}:{player:Player|null;onClose:()=>void;onSave:(p:Player)=>void}){
- const [name,setName]=useState(player?.name??'');const [selfSkill,setSelfSkill]=useState(player?.selfSkill??5);const [overrideSkill,setOverrideSkill]=useState<number|null>(player?.overrideSkill??null);const [gender,setGender]=useState<Gender>(player?.gender??'unspecified');const [height,setHeight]=useState<number|null>(player?.height??68);
+function PlayerModal({player,initialName='',onClose,onSave}:{player:Player|null;initialName?:string;onClose:()=>void;onSave:(p:Player)=>void}){
+ const [name,setName]=useState(player?.name??initialName);const [selfSkill,setSelfSkill]=useState(player?.selfSkill??5);const [overrideSkill,setOverrideSkill]=useState<number|null>(player?.overrideSkill??null);const [gender,setGender]=useState<Gender>(player?.gender??'unspecified');const [height,setHeight]=useState<number|null>(player?.height??68);
  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal large-modal"><div className="modal-head"><div><div className="eyebrow">PLAYER PROFILE</div><h2>{player?'Edit player':'Add new player'}</h2></div><button className="icon-btn" onClick={onClose}><X size={22}/></button></div><form onSubmit={e=>{e.preventDefault();if(!name.trim())return;onSave({id:player?.id??uid(),name:name.trim(),selfSkill,overrideSkill,gender,height,createdAt:player?.createdAt??Date.now()})}}><div className="field"><label htmlFor="name">Player name</label><input id="name" autoFocus maxLength={50} required value={name} placeholder="First name or nickname" onChange={e=>setName(e.target.value)}/></div><div className="field"><label>Choose your indoor 6v6 volleyball skill level</label><div className="skill-list">{SKILLS.map(([level,description],i)=><button key={level} type="button" className={'skill-card '+(selfSkill===i+1?'chosen':'')} onClick={()=>setSelfSkill(i+1)} aria-pressed={selfSkill===i+1}><span className="skill-title"><strong>{level}</strong><span className="skill-indicator">{selfSkill===i+1?<Check size={17}/>:null}</span></span><span className="skill-description">{description}</span></button>)}</div></div>{player&&<div className="field"><label htmlFor="override">Organizer rating override</label><select id="override" value={overrideSkill??''} onChange={e=>setOverrideSkill(e.target.value===''?null:+e.target.value)}><option value="">Use player's original selection</option>{SKILLS.map(([name],i)=><option value={i+1} key={name}>{name}</option>)}</select></div>}<div className="field"><label htmlFor="gender">Gender (optional)</label><select id="gender" value={gender} onChange={e=>setGender(e.target.value as Gender)}><option value="unspecified">Prefer not to say / Not set</option><option value="woman">Woman</option><option value="man">Man</option><option value="other">Another gender</option></select></div><div className="field"><div className="field-title"><label htmlFor="height">Height (optional)</label><strong>{ft(height)}</strong></div><input id="height" type="range" min="36" max="84" step="1" value={height??68} disabled={height===null} onChange={e=>setHeight(+e.target.value)}/><div className="range-ends"><small>3′0″</small><small>7′0″</small></div><label className="checkbox-label small"><input type="checkbox" checked={height===null} onChange={e=>setHeight(e.target.checked?null:68)}/> Prefer not to say</label></div><div className="modal-actions"><button className="btn secondary" type="button" onClick={onClose}>Cancel</button><button className="btn primary" type="submit"><Check size={17}/> Save player</button></div></form></div></div>
 }
 
