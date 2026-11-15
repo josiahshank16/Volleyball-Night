@@ -15,7 +15,7 @@ rules migration below is finished and tested on a disposable group.
 | Player kiosk | Open | Search/check in and submit a new player profile |
 | TV | Open | Published teams, schedule, and scores only |
 
-The central site remains a public launchpad. When it is converted later, only
+The central site will become a public launchpad. When it is converted later, only
 the designated original-project owner account may enter its private app/admin
 pages. Each independent group uses its own project, owner, leader account, and
 PIN. No group PIN or Google access token is embedded in the website bundle,
@@ -53,7 +53,7 @@ score, history, or access settings.
    document during migration.
 2. Under owner-authorized Google OAuth, enable Firebase email/password Auth,
    create the group's PIN account, and write the access configuration. Bind
-   the Google account subject at setup; an IAM collaborator is not implicitly
+   the Google account subject at setup for new groups; an IAM collaborator is not implicitly
    a Volleyball Night settings owner.
 3. Seed the new public player and attendance documents from the original
    state, then publish the owner-approved group website version that supports
