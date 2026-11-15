@@ -53,7 +53,14 @@ service cloud.firestore {
    allow update: if attendanceId == 'current'
      && request.resource.data.keys().hasOnly(['checkedIn'])
      && request.resource.data.checkedIn is list
-     && request.resource.data.checkedIn.size() <= 250;
+     && request.resource.data.checkedIn.size() <= 250
+     && (leader() || (
+       request.resource.data.checkedIn.toSet().size() == request.resource.data.checkedIn.size()
+       && request.resource.data.checkedIn.removeAll(resource.data.checkedIn).size() <= 1
+       && resource.data.checkedIn.removeAll(request.resource.data.checkedIn).size() <= 1
+       && (request.resource.data.checkedIn.removeAll(resource.data.checkedIn).size() == 0
+         || getAfter(/databases/$(database)/documents/publicPlayers/$(request.resource.data.checkedIn.removeAll(resource.data.checkedIn)[0])).data.name is string)
+     ));
    allow create, list, delete: if false;
   }
   match /publicDisplays/{displayId} {
