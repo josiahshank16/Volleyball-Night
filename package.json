@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/create-group-install-manifest.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:hosting": "npm run build && npx --yes firebase-tools@latest deploy --only hosting --project volleyball-night"
   },

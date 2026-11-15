@@ -1,11 +1,11 @@
 import {useState} from 'react';
 import {ClipboardCheck,Monitor,Trophy,Settings,ArrowRight,House,Volleyball,Database,Copy} from 'lucide-react';
-import {activeGroup,encodeGroup} from './groupConnection';
+import {activeGroup,encodeGroup,isIndependentGroupSite} from './groupConnection';
 import {connectedGroupName,firebaseConfig} from './firebase';
 export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'setup'|'manual-setup';
 export const modeHref=(mode:AppMode)=>{
  const u=new URL(window.location.href);u.search='';u.hash='';
- if(activeGroup)u.searchParams.set('g',encodeGroup(activeGroup));
+ if(activeGroup&&!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(activeGroup));
  if(mode!=='home')u.searchParams.set('mode',mode);
  return u.pathname+u.search;
 };
@@ -21,7 +21,7 @@ export function ModeHome(){
  const groupUrl=()=>{
   const u=new URL(location.href);
   u.search='';u.hash='';
-  if(activeGroup)u.searchParams.set('g',encodeGroup(activeGroup));
+  if(activeGroup&&!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(activeGroup));
   return u.toString();
  };
  return <div className="vn-home"><main className="vn-home-content">
@@ -34,7 +34,7 @@ export function ModeHome(){
     <span className="vn-mode-card-icon"><Icon size={28}/></span><strong>{title}</strong><p>{desc}</p><span className="vn-mode-arrow"><ArrowRight size={20}/></span>
    </a>)}</div>
   <div className="vn-home-group-actions">
-   <a href={modeHref('setup')}><Database size={17}/> Create a group with Google</a>
+   <a href={isIndependentGroupSite?'https://volleyball-night.web.app/?mode=setup':modeHref('setup')}><Database size={17}/> Create a group with Google</a>
    {activeGroup&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(groupUrl());setCopied(true)}catch{window.prompt('Copy the group link:',groupUrl())}}}><Copy size={17}/>{copied?'Link copied':'Copy group link'}</button>}
   </div>
   <p className="vn-home-note">Open design preview: no sign-in or PIN required yet. Each group connects to its own live Firebase database.</p>

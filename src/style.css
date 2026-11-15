@@ -289,3 +289,16 @@
 .vn-wizard-success .vn-wizard-meter-wrap{max-width:420px;margin:2px 0}
 @media(max-width:480px){.vn-wizard-meter{height:18px}}
 @media(prefers-reduced-motion:reduce){.vn-wizard-meter-fill{transition:none}}
+
+/* Optional first-pass installation of a fully independent group Hosting site. */
+.vn-install-panel{width:100%;border:1px solid #cbdfe9;background:#f4fafc;border-radius:13px;padding:17px;margin:5px 0 12px;text-align:left}
+.vn-install-head{display:flex;align-items:flex-start;gap:10px;color:#167b6d}
+.vn-install-head>svg{flex-shrink:0;margin-top:2px}
+.vn-install-head strong{display:block;font-size:14px;color:#284e59}
+.vn-install-head p{font-size:12px!important;line-height:1.6;color:#647f8a;margin:4px 0 9px!important}
+.vn-install-panel .vn-install-action{display:flex;align-items:center;justify-content:center;gap:8px;margin:9px 0!important;width:100%;min-height:44px}
+.vn-install-feedback{text-align:left;color:#266d5b!important;font-size:12px!important;line-height:1.6}
+.vn-install-failure{background:#fff8f4;border:1px solid #ecd3c4;padding:11px;border-radius:9px;color:#844936;font-size:12px}
+.vn-install-failure p{font-size:12px!important;line-height:1.5;color:#844936!important;margin:4px 0!important;overflow-wrap:anywhere}
+.vn-install-failure small{display:block;line-height:1.6}
+.vn-install-link{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750;color:#167c6d;text-decoration:underline;margin-top:8px;overflow-wrap:anywhere}

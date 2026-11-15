@@ -11,6 +11,10 @@ export type GroupConnection={
 };
 export const GROUP_STORAGE_KEY='volleyball-night-connected-group-v1';
 export const DEMO_GROUP_NAME='Original Volleyball Night';
+// Independent Hosting copies embed their public group configuration directly
+// in index.html. They must never fall back to the central project's database.
+declare global {interface Window {__VOLLEYBALL_GROUP_CONFIG__?:unknown}}
+
 
 const text=(value:unknown,max:number)=>typeof value==='string'&&value.trim().length>0&&value.length<=max?value.trim():null;
 
@@ -47,10 +51,21 @@ export function decodeGroup(encoded:string):GroupConnection{
 function savedGroup():GroupConnection|null{
  try{const item=localStorage.getItem(GROUP_STORAGE_KEY);return item?validateGroup(JSON.parse(item)):null}catch{return null;}
 }
+const independentConfig=window.__VOLLEYBALL_GROUP_CONFIG__;
+let independentGroup:GroupConnection|null=null;
+if(independentConfig!==undefined){
+ // An invalid embedded configuration must stop the app instead of silently
+ // switching to the original Volleyball Night Firestore project.
+ independentGroup=validateGroup(independentConfig);
+}
+export const isIndependentGroupSite=independentGroup!==null;
 const param=new URLSearchParams(window.location.search).get('g');
 let active:GroupConnection|null=null;
 let invalidLink:string|null=null;
-if(param!==null){
+if(independentGroup){
+ active=independentGroup; // This site's own database always takes precedence.
+ localStorage.setItem(GROUP_STORAGE_KEY,JSON.stringify(active));
+}else if(param!==null){
  try{
   active=decodeGroup(param);
   localStorage.setItem(GROUP_STORAGE_KEY,JSON.stringify(active));
@@ -61,7 +76,7 @@ export const groupLinkError=invalidLink;
 export function useGroupLink(mode?:string):string{
  const u=new URL(window.location.href);
  u.search='';u.hash='';
- if(active)u.searchParams.set('g',encodeGroup(active));
+ if(active&&!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(active));
  if(mode)u.searchParams.set('mode',mode);
  return u.toString();
 }
@@ -70,7 +85,7 @@ export function activateGroup(group:GroupConnection){
  const checked=validateGroup(group);
  localStorage.setItem(GROUP_STORAGE_KEY,JSON.stringify(checked));
  const u=new URL(window.location.href);
- u.search='';u.searchParams.set('g',encodeGroup(checked));
+ u.search='';if(!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(checked));
  window.location.assign(u.toString());
 }
 export function useOriginalGroup(){
