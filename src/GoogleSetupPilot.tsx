@@ -3,7 +3,7 @@ import {useRef,useState} from 'react';
 import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,KeyRound,Loader2,RotateCcw,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
-import {activateGroup,encodeGroup,validateGroup,type GroupConnection} from './groupConnection';
+import {activateGroup,encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
 const OAUTH_ID_KEY='volleyball-night-oauth-pilot-client-id';
@@ -19,13 +19,21 @@ type OAuthGoogle={accounts:{oauth2:{initTokenClient:(config:{
 declare global {interface Window{google?:OAuthGoogle}}
 
 function completedFor(checkpoint:SetupCheckpoint|null):GroupConnection|null{
- if(!checkpoint||checkpoint.stage!=='complete')return null;
+ if(!checkpoint)return null;
  try{
   const stored=localStorage.getItem(COMPLETED_KEY);
-  if(!stored)return null;
-  const item=JSON.parse(stored) as {projectId?:string;group?:unknown};
-  return item.projectId===checkpoint.projectId?validateGroup(item.group):null;
- }catch{return null}
+  if(stored){
+   const item=JSON.parse(stored) as {projectId?:string;group?:unknown};
+   if(item.projectId===checkpoint.projectId)return validateGroup(item.group);
+  }
+  // Migrate a group that was successfully connected through the old two-button pilot.
+  const legacy=localStorage.getItem(GROUP_STORAGE_KEY);
+  if(legacy){
+   const group=validateGroup(JSON.parse(legacy));
+   if(group.config.projectId===checkpoint.projectId)return group;
+  }
+ }catch{/* No matching previously completed group. */}
+ return null;
 }
 function getShareLink(group:GroupConnection){
  const url=new URL(location.href);
@@ -50,6 +58,8 @@ export function GoogleSetupPilot(){
  const [manualId,setManualId]=useState('');
  const [busy,setBusy]=useState(false);
  const busyRef=useRef(false);
+ const [authorizing,setAuthorizing]=useState(false);
+ const authorizingRef=useRef(false);
  const [phase,setPhase]=useState<ProgressStep>(initialCheckpoint?.stage==='complete'?3:0);
  const [status,setStatus]=useState(initialCheckpoint?.stage==='complete'?'':initialCheckpoint?'Your earlier setup was saved. Continue with Google to finish it.':'');
  const [technical,setTechnical]=useState('');
@@ -113,7 +123,7 @@ export function GoogleSetupPilot(){
   }finally{busyRef.current=false;setBusy(false);}
  }
  function continueWithGoogle(){
-  if(busyRef.current)return;
+  if(busyRef.current||authorizingRef.current)return;
   setError('');setNeedTerms(false);
   if(!checkpointRef.current&&(!name.trim()||!agreed)){
    setError('Enter a group name and accept the setup agreement first.');return;
@@ -133,10 +143,12 @@ export function GoogleSetupPilot(){
   }
   localStorage.setItem(OAUTH_ID_KEY,clientId.trim());
   setStatus('Opening Google sign-in…');setPhase(0);
+  authorizingRef.current=true;setAuthorizing(true);
   try{
    const client=window.google.accounts.oauth2.initTokenClient({
     client_id:clientId.trim(),scope:SCOPE,
     callback:r=>{
+     authorizingRef.current=false;setAuthorizing(false);
      if(!r.access_token||r.error){
       setError(r.error_description||r.error||'Google did not provide authorization.');
       setStatus('');return;
@@ -145,15 +157,19 @@ export function GoogleSetupPilot(){
      void finishWithToken(r.access_token);
     },
     error_callback:e=>{
+     authorizingRef.current=false;setAuthorizing(false);
      setError('Google sign-in was interrupted: '+(e.type||'popup closed'));
      setStatus('Your setup is still saved. Continue again whenever you are ready.');
     }
    });
    client.requestAccessToken({prompt:'consent'});
-  }catch(err){setError((err as Error).message);setStatus('');}
+  }catch(err){
+   authorizingRef.current=false;setAuthorizing(false);
+   setError((err as Error).message);setStatus('');
+  }
  }
  function startNew(){
-  if(busyRef.current)return;
+  if(busyRef.current||authorizingRef.current)return;
   if(checkpointRef.current&&!window.confirm(
    'Start setting up a DIFFERENT group? This will clear only the saved setup progress in this browser. Any Google Cloud project already created will remain in your Google account.'))return;
   clearCheckpoint();localStorage.removeItem(COMPLETED_KEY);
@@ -162,7 +178,7 @@ export function GoogleSetupPilot(){
   setStatus('');setTechnical('');setManualId('');setCopied(false);
  }
  function restoreProject(){
-  if(busyRef.current)return;
+  if(busyRef.current||authorizingRef.current)return;
   const id=manualId.trim();
   if(!/^vn-[a-z0-9-]{3,54}$/.test(id)){setError('Enter a Volleyball Night test project ID starting with vn-.');return;}
   if(!name.trim()){setError('Enter the original group name before resuming a project.');return;}
@@ -208,10 +224,10 @@ export function GoogleSetupPilot(){
       </select>
      </label>}
      <button type="button" className="btn primary oauth-google-button vn-wizard-button"
-      onClick={continueWithGoogle} disabled={busy||!agreed||(!checkpoint&&!name.trim())}>
-      {busy?<Loader2 size={18} className="vn-wizard-spinner"/>:<KeyRound size={18}/>}
-      {busy?'Setting up your group…':checkpoint?'Continue setup with Google':'Continue with Google'}
-      {!busy&&<ArrowRight size={17}/>}
+      onClick={continueWithGoogle} disabled={busy||authorizing||!agreed||(!checkpoint&&!name.trim())}>
+      {(busy||authorizing)?<Loader2 size={18} className="vn-wizard-spinner"/>:<KeyRound size={18}/>}
+      {busy?'Setting up your group…':authorizing?'Waiting for Google…':checkpoint?'Continue setup with Google':'Continue with Google'}
+      {!busy&&!authorizing&&<ArrowRight size={17}/>}
      </button>
     </>}
     {(busy||status||error)&&!ready&&<div className="vn-wizard-progress" role="status">
