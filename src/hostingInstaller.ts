@@ -31,13 +31,33 @@ async function googleApi<T>(url:string,token:string,method='GET',body?:unknown):
  try{result=raw?JSON.parse(raw):{}}catch{result={message:raw.slice(0,250)}}
  if(!response.ok){
   const payload=result as {error?:{message?:string};message?:string};
-  const error=new Error('Google Hosting API '+response.status+': '+(payload.error?.message||payload.message||response.statusText)) as ApiError;
+  // Report the failing Google service and HTTP operation, not just a generic
+  // "Hosting API" error. Google returns the same 403 text for several APIs.
+  const endpoint=new URL(url);
+  const operation=endpoint.hostname+' '+method+' '+endpoint.pathname;
+  const error=new Error('Google API '+response.status+' while calling '+operation+': '+(payload.error?.message||payload.message||response.statusText)) as ApiError;
   error.status=response.status;
   throw error;
  }
  return result as T;
 }
 
+async function verifyProjectAccess(projectId:string,token:string,notify:InstallNotify){
+ notify('Verifying access to the group’s Google Cloud project…');
+ try{
+  const project=await googleApi<{projectId?:string;state?:string}>(
+   'https://cloudresourcemanager.googleapis.com/v3/projects/'+projectId,token);
+  if(project.state==='DELETE_REQUESTED')throw Error('This group’s project is scheduled for deletion.');
+ }catch(err){
+  if([403,404].includes((err as ApiError).status??0)){
+   throw Error('The Google account selected for installation cannot access project '+projectId+
+    '. Please select the SAME Google account that originally created this group. '+
+    'Check its account avatar at https://console.firebase.google.com/project/'+projectId+'/overview. '+
+    'Google details: '+(err as Error).message);
+  }
+  throw err;
+ }
+}
 async function enableHostingApi(projectId:string,token:string,notify:InstallNotify){
  const base='https://serviceusage.googleapis.com/v1/projects/'+projectId+'/services/firebasehosting.googleapis.com';
  const service=await googleApi<{state?:string}>(base,token);
@@ -81,9 +101,18 @@ async function ensureHostingSite(projectId:string,token:string,notify:InstallNot
    }
   }catch(e){
    const error=e as ApiError;
-   const temporary=error.status===403&&/has not been used|is disabled|SERVICE_DISABLED|not enabled/i.test(error.message);
-   if(!temporary||attempt===14)throw e;
-   notify('Google is activating Firebase Hosting. Checking again…');
+   // A newly enabled Hosting service can temporarily report the project as
+   // missing even though Cloud Resource Manager confirmed access above.
+   const temporary=error.status===403&&
+    /has not been used|is disabled|SERVICE_DISABLED|not enabled|not found or permission denied/i.test(error.message);
+   if(!temporary)throw e;
+   if(attempt===14){
+    throw Error('Firebase Hosting still cannot list or create a site after several automatic checks. '+
+     'The Google Cloud project exists and was accessible to the account you selected. '+
+     'Check that the Firebase Hosting API is enabled for project '+projectId+
+     ', then retry the same installation. Last Google response: '+error.message);
+   }
+   notify('Google is connecting Firebase Hosting to this project. Checking again automatically…');
    await sleep(5000);
   }
  }
@@ -158,6 +187,7 @@ export async function installIndependentGroupWebsite(input:{
  // Load and validate the full published build before changing the group's Hosting.
  const built=await loadBuildFiles(group,notify);
  const packed=await packFiles(built);
+ await verifyProjectAccess(projectId,token,notify);
  await enableHostingApi(projectId,token,notify);
  const site=await ensureHostingSite(projectId,token,notify);
  const siteId=site.siteId;

@@ -207,7 +207,7 @@ export function GoogleSetupPilot(){
      setInstallError('Google authorization was interrupted: '+(e.type||'popup closed'));
     }
    });
-   client.requestAccessToken({prompt:'consent'});
+   client.requestAccessToken({prompt:'select_account consent'});
   }catch(err){
    setInstallAuthorizing(false);
    setInstallError((err as Error)?.message||String(err));
@@ -402,6 +402,7 @@ export function GoogleSetupPilot(){
        <div className="vn-install-head"><Globe2 size={21}/>
         <div><strong>{installedUrl?'Your independent website is published':'Install an independent website'}</strong>
          <p>{installedUrl?'This group has its own Firebase Hosting site. Its pages and data no longer depend on the Volleyball Night hub.':'Give this group its own website, hosted inside its own Firebase project. This is an experimental installer; your existing group link will keep working if installation fails.'}</p>
+         <p><strong>Important:</strong> When Google asks you to sign in, select the Google account that originally created this group.</p>
         </div>
        </div>
        <button type="button" className="btn secondary vn-install-action" disabled={installing||installAuthorizing}
@@ -413,7 +414,9 @@ export function GoogleSetupPilot(){
        {installError&&<div className="vn-install-failure" role="alert">
         <strong>Website installation hasn't finished.</strong>
         <p>{installError}</p>
-        <small>The original group website still works. Sign in with the project owner's Google account and retry here.</small>
+        <small>The original group website still works. Make sure you select the project owner's Google account.</small>
+        <a href={`https://console.firebase.google.com/project/${ready.config.projectId}/overview`} target="_blank" rel="noopener noreferrer">Check this group’s Google account <ExternalLink size={14}/></a>
+        <a href={`https://console.cloud.google.com/apis/library/firebasehosting.googleapis.com?project=${ready.config.projectId}`} target="_blank" rel="noopener noreferrer">Check its Firebase Hosting API <ExternalLink size={14}/></a>
        </div>}
        {installedUrl&&<a className="vn-install-link" href={installedUrl} target="_blank" rel="noopener noreferrer">
         Open independent group website <ExternalLink size={15}/>
