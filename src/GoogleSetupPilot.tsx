@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import {useState} from 'react';
 import {AlertCircle,ArrowRight,CheckCircle2,ExternalLink,KeyRound,Loader2,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
