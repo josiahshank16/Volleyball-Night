@@ -178,7 +178,7 @@ export async function installIndependentGroupWebsite(input:{
  const populated=await googleApi<PopulateFiles>(hostingApi+'/'+version.name+':populateFiles',token,'POST',{files:fileHashes});
  const required=new Set(populated.uploadRequiredHashes||[]);
  if(required.size&&!populated.uploadUrl)throw Error('Google did not provide a Hosting upload URL.');
- for(const [path,item] of packed){
+ for(const item of packed.values()){
   if(!required.has(item.hash))continue;
   notify('Uploading website files to your Firebase project…');
   await uploadRequired(populated.uploadUrl!,item.hash,item.compressed,token);
