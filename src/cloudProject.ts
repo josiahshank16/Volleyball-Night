@@ -78,43 +78,53 @@ async function waitOperation(name:string,token:string,notify:(s:string)=>void){
  }
  throw Error('Google is still creating your project. Reopen this page and continue with the same project. Do not start another setup.');
 }
-async function waitActive(projectId:string,token:string,notify:(s:string)=>void){
+async function waitActive(projectId:string,token:string,notify:(s:string)=>void,afterCreate=false){
  const url='https://cloudresourcemanager.googleapis.com/v3/projects/'+projectId;
- for(let i=0;i<45;i++){
+ let lastError:unknown=null;
+ for(let i=0;i<32;i++){
   try{
    const project=await request<GoogleProject>(url,token);
    if(project.state==='ACTIVE'||!project.state)return;
    if(project.state==='DELETE_REQUESTED')throw Error('This project is scheduled for deletion in Google Cloud. It cannot be used for a new group.');
-  }catch(e){if(!(e instanceof GoogleApiError)||e.status!==404)throw e;}
-  if(i%8===0)notify('Waiting for Google to finish creating the project…');
+  }catch(e){
+   // projects.get returns 403 even when a project doesn't exist.
+   // Only treat that as temporary *after* an actual create attempt
+   // (or a 409 conflict indicating the same ID may be in progress).
+   if(!(e instanceof GoogleApiError)||![403,404].includes(e.status)||(!afterCreate&&e.status===403))throw e;
+   lastError=e;
+  }
+  if(i%5===0)notify('Waiting for Google to finish activating your project…');
   await sleep(1900);
  }
- throw Error('Google has not finished creating this project yet. Return to this page to resume without creating another.');
-}
-/** Safe after a reload: checks the saved ID first, and never generates a new ID. */
-export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string,notify:(s:string)=>void){
- const url='https://cloudresourcemanager.googleapis.com/v3/projects/'+checkpoint.projectId;
- notify('Checking your saved group project…');
- try{
-  const project=await request<GoogleProject>(url,token);
-  if(project.state==='ACTIVE'||!project.state){notify('Your group project is ready.');return;}
-  if(project.state==='DELETE_REQUESTED')throw Error('This project is scheduled for deletion. Please inspect it in Google Cloud before continuing.');
-  await waitActive(checkpoint.projectId,token,notify);
-  return;
- }catch(err){
-  if(!(err instanceof GoogleApiError)||err.status!==404)throw err;
+ if(lastError instanceof GoogleApiError&&lastError.status===403){
+  throw Error('Google accepted or recognized this project ID, but this Google account still cannot access it. Make sure you used the same account that started this group. Google might still be applying permissions. If the problem continues, check the project in Google Cloud Console. The project ID is saved and will NOT change.');
  }
+ throw Error('Google has not finished creating this project yet. Return to this page to resume the same project ID; do not create another.');
+}
+/** New checkpoints POST first; saved created projects are only read, never recreated. */
+export async function ensureCloudProject(checkpoint:SetupCheckpoint,token:string,notify:(s:string)=>void){
+ if(checkpoint.stage!=='allocated'){
+  notify('Checking your saved group project…');
+  await waitActive(checkpoint.projectId,token,notify);
+  notify('Your group project is ready.');
+  return;
+ }
+ // We previously used projects.get as a preflight, but Google returns
+ // PERMISSION_DENIED (403) for IDs that do not yet exist. Instead send
+ // projects.create with our pre-allocated, persisted ID straight away.
+ // If a prior POST succeeded and the browser closed, the retry receives
+ // a conflict (409) and simply waits to read the SAME project.
  notify('Creating your group-owned Google Cloud project…');
+ let operation:Operation|undefined;
  try{
-  const op=await request<Operation>('https://cloudresourcemanager.googleapis.com/v3/projects',token,'POST',{
+  operation=await request<Operation>('https://cloudresourcemanager.googleapis.com/v3/projects',token,'POST',{
    projectId:checkpoint.projectId,displayName:'Volleyball Night - '+checkpoint.groupName.slice(0,50)
   });
-  if(op.name)await waitOperation(op.name,token,notify);
  }catch(err){
   if(!(err instanceof GoogleApiError)||err.status!==409)throw err;
-  // A previous attempt may have been accepted before a browser reload.
-  notify('Google may already be creating this project. Checking its status…');
+  notify('This project ID is already registered. Checking whether your previous setup created it…');
  }
- await waitActive(checkpoint.projectId,token,notify);
+ if(operation?.name)await waitOperation(operation.name,token,notify);
+ await waitActive(checkpoint.projectId,token,notify,true);
  notify('Your group project is ready.');
 }
