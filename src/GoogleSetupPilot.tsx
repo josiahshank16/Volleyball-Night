@@ -55,8 +55,8 @@ function SetupProgressMeter({completedSlots}:{completedSlots:number}){
    aria-label="Group setup progress"
    aria-valuemin={0} aria-valuemax={SETUP_PROGRESS_SLOTS} aria-valuenow={slots}
    aria-valuetext={slots===SETUP_PROGRESS_SLOTS?'Group setup complete':'Group setup is still in progress'}>
-   {Array.from({length:SETUP_PROGRESS_SLOTS},(_,i)=>
-    <span key={i} aria-hidden="true" className={'vn-wizard-meter-unit'+(i<slots?' filled':'')+(i===SETUP_PROGRESS_SLOTS-1?' completion-unit':'')}/>)}
+   <div className="vn-wizard-meter-fill" aria-hidden="true"
+    style={{width:`${slots/SETUP_PROGRESS_SLOTS*100}%`}}/>
   </div>
   <div className="vn-wizard-meter-caption">
    <span>Cloud workspace</span><span>Connecting database</span>

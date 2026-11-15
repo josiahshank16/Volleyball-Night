@@ -280,15 +280,12 @@
 .vn-wizard-terms-diagnostics pre{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:600px){.vn-wizard-terms{padding:18px 15px}.vn-wizard-terms h2{font-size:18px}}
 
-/* Evidence-driven group creation meter. 10 cloud slots, 14 Firestore
-   check slots, plus one reserved completion slot. No timer or fake 100%. */
+/* Continuous progress bar. Check events advance its width in 1/25 increments.
+   Slot 25 is reserved exclusively for a verified successful setup. */
 .vn-wizard-meter-wrap{width:100%;max-width:560px;margin:17px auto 5px}
-.vn-wizard-meter{display:flex;align-items:center;gap:3px;width:100%;border:1px solid #d0e4dc;background:#eaf3ef;padding:5px;border-radius:9px;overflow:hidden}
-.vn-wizard-meter-unit{flex:1 1 0;min-width:0;height:12px;border-radius:2px;background:#cddfd8;transition:background-color .26s ease}
-.vn-wizard-meter-unit.filled{background:#16836b}
-.vn-wizard-meter-unit.completion-unit:not(.filled){background:#f6faf8;box-shadow:inset 0 0 0 1px #9fbeb0}
-.vn-wizard-meter-unit.completion-unit.filled{background:#0b725b}
+.vn-wizard-meter{width:100%;height:22px;border:1px solid #d0e4dc;background:#e3efea;border-radius:999px;overflow:hidden}
+.vn-wizard-meter-fill{height:100%;width:0;background:#16836b;border-radius:inherit;transition:width .45s ease-out}
 .vn-wizard-meter-caption{display:flex;justify-content:space-between;gap:12px;color:#678a80;font-size:10px;font-weight:650;margin-top:7px}
 .vn-wizard-success .vn-wizard-meter-wrap{max-width:420px;margin:2px 0}
-@media(max-width:480px){.vn-wizard-meter{gap:2px;padding:4px}.vn-wizard-meter-unit{height:11px}}
-@media(prefers-reduced-motion:reduce){.vn-wizard-meter-unit{transition:none}}
+@media(max-width:480px){.vn-wizard-meter{height:18px}}
+@media(prefers-reduced-motion:reduce){.vn-wizard-meter-fill{transition:none}}
