@@ -58,7 +58,7 @@ export function useCloudState(){
   return()=>{connected.current=false;off()};
  },[retry]);
  const apply=useCallback((fn:(draft:AppState)=>void)=>{
-  if(!connected.current){setStatus('error');setError('Not connected to Firestore. No changes were made. Use Retry connection in Organizer Settings.');return;}
+  if(!connected.current){setStatus('error');setError('Not connected to Firestore. No changes were made. Use Retry connection in Organizer Settings.');return false;}
   const optimistic=structuredClone(latest.current);fn(optimistic);
   latest.current=optimistic;setState(optimistic);pending.current++;setStatus('saving');
   queue.current=queue.current.catch(()=>{}).then(async()=>{
@@ -74,6 +74,7 @@ export function useCloudState(){
    }catch(e){connected.current=false;setStatus('error');setError(describe(e));}
    finally{pending.current=Math.max(0,pending.current-1);if(pending.current===0&&connected.current)setStatus(v=>v==='error'?'error':'connected');}
   });
+  return true;
  },[]);
  const createCloud=async()=>{
   if(!missing)throw Error('A cloud session already exists. You do not need to initialize it again.');

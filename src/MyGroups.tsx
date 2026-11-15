@@ -1,12 +1,14 @@
 /// <reference types="vite/client" />
 import {useState} from 'react';
-import {ArrowLeft,ArrowRight,CheckCircle2,ExternalLink,FolderOpen,Loader2,RefreshCw,ShieldCheck,Volleyball} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CheckCircle2,ExternalLink,FolderOpen,Globe2,Loader2,RefreshCw,ShieldCheck,Volleyball} from 'lucide-react';
 import {ModeSwitch} from './ModeHome';
 import {encodeGroup,validateGroup,type GroupConnection} from './groupConnection';
+import {installIndependentGroupWebsite} from './hostingInstaller';
 
 // Discovery is read-only. Google access tokens are used in memory only.
 const CONFIGURED_ID=import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string|undefined;
 const SCOPE='https://www.googleapis.com/auth/firebase.readonly';
+const INSTALL_SCOPE='https://www.googleapis.com/auth/cloud-platform';
 // Google Identity Services types are declared by GoogleSetupPilot.
 type FirebaseProject={projectId?:string;displayName?:string;state?:string};
 type ProjectPage={results?:FirebaseProject[];nextPageToken?:string};
@@ -121,8 +123,45 @@ export function MyGroups(){
  const [status,setStatus]=useState('');
  const [error,setError]=useState('');
  const [groups,setGroups]=useState<ListedGroup[]|null>(null);
+ const [updating,setUpdating]=useState<string|null>(null);
+ const [updateStatus,setUpdateStatus]=useState<Record<string,string>>({});
+ const [updateError,setUpdateError]=useState<Record<string,string>>({});
+ function updateWebsite(item:ListedGroup){
+  if(!item.group||updating||loading)return;
+  if(!window.confirm(`${item.siteUrl?'Update':'Install'} the independent website for ${item.name} (${item.id})? This publishes the current Volleyball Night app to that group's Firebase Hosting project. Its player data stays in its existing Firestore database.`))return;
+  if(!CONFIGURED_ID||!window.google?.accounts?.oauth2){
+   setUpdateError(v=>({...v,[item.id]:'Google sign-in is unavailable. Refresh the page and try again.'}));return;
+  }
+  setUpdating(item.id);
+  setUpdateError(v=>({...v,[item.id]:''}));
+  setUpdateStatus(v=>({...v,[item.id]:'Select the Google account that owns this group…'}));
+  try{
+   const oauth=window.google.accounts.oauth2.initTokenClient({
+    client_id:CONFIGURED_ID,scope:INSTALL_SCOPE,
+    callback:result=>{
+     if(!result.access_token||result.error){
+      setUpdateError(v=>({...v,[item.id]:result.error_description||result.error||'Google authorization was not completed.'}));
+      setUpdating(null);return;
+     }
+     void installIndependentGroupWebsite({group:item.group!,token:result.access_token,
+      notify:message=>setUpdateStatus(v=>({...v,[item.id]:message}))})
+      .then(siteUrl=>{
+       setGroups(current=>current?.map(group=>group.id===item.id?{...group,siteUrl,hostingIssue:undefined}:group)??null);
+       setUpdateStatus(v=>({...v,[item.id]:'Website published. Open the group to see the new version.'}));
+      })
+      .catch(err=>setUpdateError(v=>({...v,[item.id]:(err as Error)?.message||String(err)})))
+      .finally(()=>setUpdating(null));
+    },
+    error_callback:e=>{
+     setUpdateError(v=>({...v,[item.id]:'Google sign-in was interrupted: '+(e.type||'popup closed')}));
+     setUpdating(null);
+    }
+   });
+   oauth.requestAccessToken({prompt:'select_account'});
+  }catch(e){setUpdateError(v=>({...v,[item.id]:(e as Error)?.message||String(e)}));setUpdating(null)}
+ }
  function findGroups(){
-  if(loading)return;
+  if(loading||updating)return;
   setError('');setGroups(null);
   if(!CONFIGURED_ID||!window.google?.accounts?.oauth2){
    setError('Google sign-in is not available yet. Refresh the page and try again.');return;
@@ -157,7 +196,7 @@ export function MyGroups(){
     <p>Sign in with Google to find the Volleyball Night groups whose Firebase projects you can access. You can open a group from any browser, even if you've never used that browser before.</p>
    </div>
    <section className="group-setup-card vn-my-groups">
-    <button className="btn primary vn-my-groups-signin" type="button" disabled={loading} onClick={findGroups}>
+    <button className="btn primary vn-my-groups-signin" type="button" disabled={loading||!!updating} onClick={findGroups}>
      {loading?<Loader2 size={19} className="vn-wizard-spinner"/>:groups?<RefreshCw size={19}/>:<ShieldCheck size={19}/>}
      {loading?'Finding your groups…':groups?'Search another Google account':'Find groups with Google'}
     </button>
@@ -175,11 +214,18 @@ export function MyGroups(){
          <span className="vn-my-group-unavailable">{item.issue}</span>}
         {item.hostingIssue&&<small>Website status could not be checked. The legacy link is available.</small>}
        </div>
-       {item.group?<a className="btn primary" href={url}>{item.siteUrl?'Open group':'Open legacy group'} <ArrowRight size={16}/></a>:
+       {item.group?<div className="vn-my-group-actions"><a className="btn primary" href={url}>{item.siteUrl?'Open group':'Open legacy group'} <ArrowRight size={16}/></a>
+        <button className="btn secondary" type="button" disabled={!!updating} onClick={()=>updateWebsite(item)}>
+         {updating===item.id?<Loader2 size={16} className="vn-wizard-spinner"/>:<Globe2 size={16}/>}
+         {updating===item.id?'Publishing…':item.siteUrl?'Update website':'Install website'}
+        </button></div>:
         <a className="btn secondary" href={'https://console.firebase.google.com/project/'+item.id+'/overview'} target="_blank" rel="noopener noreferrer">View project <ExternalLink size={15}/></a>}
+       {(updateStatus[item.id]||updateError[item.id])&&<div className="vn-my-group-feedback" role={updateError[item.id]?'alert':'status'}>
+        {updateError[item.id]||updateStatus[item.id]}
+       </div>}
       </div>;
      })}
-     <p className="vn-my-groups-note">Independent groups open on their own websites. Older groups without a published site can still use their original link. Groups you joined only with a share link may not appear here.</p>
+     <p className="vn-my-groups-note">Independent groups open on their own websites. Website updates require the Google account with access to that group and change its app files, not its saved players or games. Older groups without a published site can still use their original link. Groups you joined only with a share link may not appear here.</p>
     </div>}
    </section>
    <a className="vn-my-groups-create" href="/?mode=setup"><ArrowLeft size={16}/> Need a new group? Create one here</a>
