@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
 import {useRef,useState} from 'react';
-import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,KeyRound,Loader2,RotateCcw,Volleyball} from 'lucide-react';
+import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,KeyRound,Loader2,RotateCcw,ShieldCheck,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
 import {activateGroup,encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
 const OAUTH_ID_KEY='volleyball-night-oauth-pilot-client-id';
+const TERMS_PENDING_KEY='volleyball-night-firebase-terms-pending-project';
 const CONFIGURED_ID=import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string|undefined;
 const SCOPE='https://www.googleapis.com/auth/cloud-platform';
 const FIREBASE_TERMS_URL='https://console.firebase.google.com/?forceCheckTos=true';
@@ -60,12 +61,12 @@ export function GoogleSetupPilot(){
  const busyRef=useRef(false);
  const [authorizing,setAuthorizing]=useState(false);
  const authorizingRef=useRef(false);
- const [phase,setPhase]=useState<ProgressStep>(initialCheckpoint?.stage==='complete'?3:0);
- const [status,setStatus]=useState(initialCheckpoint?.stage==='complete'?'':initialCheckpoint?'Your earlier setup was saved. Continue with Google to finish it.':'');
+ const [phase,setPhase]=useState<ProgressStep>(initialCheckpoint?.stage==='complete'?3:initialCheckpoint?.stage==='created'&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId?2:0);
+ const [status,setStatus]=useState(initialCheckpoint?.stage==='complete'?'':initialCheckpoint&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId?'One-time Google approval needed to finish setup.':initialCheckpoint?'Your earlier setup was saved. Continue with Google to finish it.':'');
  const [technical,setTechnical]=useState('');
  const technicalRef=useRef('');
  const [error,setError]=useState('');
- const [needTerms,setNeedTerms]=useState(false);
+ const [needTerms,setNeedTerms]=useState(()=>!!initialCheckpoint&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId);
  const [ready,setReady]=useState<GroupConnection|null>(()=>completedFor(initialCheckpoint));
  const [copied,setCopied]=useState(false);
 
@@ -114,15 +115,24 @@ export function GoogleSetupPilot(){
    });
    const done={...created,stage:'complete' as const,updatedAt:Date.now()};
    localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:done.projectId,group}));
+   if(localStorage.getItem(TERMS_PENDING_KEY)===done.projectId)localStorage.removeItem(TERMS_PENDING_KEY);
    remember(done);
    setReady(group);setPhase(3);setStatus('Your group is ready!');setTechnical('');
   }catch(err){
    const message=(err as Error)?.message||String(err);
    setError(message);
-   // A generic 403 is NOT proof that Firebase Terms haven't been accepted.
-   // Google also uses 403 for disabled APIs and IAM permissions.
-   setNeedTerms(/terms of service|firebase terms|accept.*terms|\btos\b|TOS_NOT_ACCEPTED/i.test(message));
-   setStatus('Setup paused. Your progress is saved; continuing will reuse the same project.');
+   // Show the friendly approval step ONLY for an explicit Terms response.
+   // A generic Google 403 is not evidence of missing Firebase Terms.
+   const requiresTerms=/terms of service|firebase terms|accept.*terms|\btos\b|TOS_NOT_ACCEPTED/i.test(message);
+   setNeedTerms(requiresTerms);
+   if(requiresTerms){
+    localStorage.setItem(TERMS_PENDING_KEY,current.projectId);
+    setPhase(2);
+    setStatus('One-time Google approval needed to finish setup.');
+   }else{
+    if(localStorage.getItem(TERMS_PENDING_KEY)===current.projectId)localStorage.removeItem(TERMS_PENDING_KEY);
+    setStatus('Setup paused. Your progress is saved; continuing will reuse the same project.');
+   }
   }finally{busyRef.current=false;setBusy(false);}
  }
  function continueWithGoogle(){
@@ -175,7 +185,7 @@ export function GoogleSetupPilot(){
   if(busyRef.current||authorizingRef.current)return;
   if(checkpointRef.current&&!window.confirm(
    'Start setting up a DIFFERENT group? This will clear only the saved setup progress in this browser. Any Google Cloud project already created will remain in your Google account.'))return;
-  clearCheckpoint();localStorage.removeItem(COMPLETED_KEY);
+  clearCheckpoint();localStorage.removeItem(COMPLETED_KEY);localStorage.removeItem(TERMS_PENDING_KEY);
   checkpointRef.current=null;setCheckpoint(null);setName('');setRegion('us-central1');
   setAgreed(false);setReady(null);setError('');setNeedTerms(false);setPhase(0);
   setStatus('');setTechnical('');setManualId('');setCopied(false);
@@ -188,7 +198,8 @@ export function GoogleSetupPilot(){
   if(checkpointRef.current?.projectId!==id&&!window.confirm(
    'Resume the project '+id+'? Make sure it is the project you created and own. This will replace the saved setup checkpoint in this browser.'))return;
   remember({version:1,projectId:id,groupName:name.trim(),region,stage:'created',updatedAt:Date.now()});
-  setReady(null);setError('');setStatus('Project saved. Continue with Google to finish this group.');
+  localStorage.removeItem(TERMS_PENDING_KEY);
+  setNeedTerms(false);setReady(null);setError('');setStatus('Project saved. Continue with Google to finish this group.');
   setShowAdvanced(false);
  }
  const groupLink=ready?getShareLink(ready):'';
@@ -199,6 +210,7 @@ export function GoogleSetupPilot(){
  const permissionIssue=!needTerms&&!firestoreClientIssue&&/permission|403|access denied/i.test(error);
  const rulesStep=/rules|firebaserules/i.test(technical)||/Firebase Rules/i.test(error);
  const subtitle=ready?'Everything is connected. Your players and games are stored in your group’s own Firebase project.':
+  needTerms?'Your group is almost ready. Google has one quick, first-time approval before we can finish.':
   checkpoint?'Your group setup is saved and will continue without creating another project.':
   'Create a separate cloud workspace for your volleyball group. No GitHub account or manual Firebase configuration needed.';
  return <div className="group-setup-shell">
@@ -209,7 +221,7 @@ export function GoogleSetupPilot(){
     <p>{subtitle}</p>
    </div>
    <section className="group-setup-card vn-wizard-card">
-    {!ready&&<>
+    {!ready&&!needTerms&&<>
      <div className="group-setup-fields">
       <label htmlFor="wizard-name">Group name
        <input id="wizard-name" maxLength={55} value={name} disabled={!!checkpoint||busy}
@@ -255,7 +267,34 @@ export function GoogleSetupPilot(){
       {status&&<p className="vn-wizard-status">{status}</p>}
       {busy&&<p className="vn-wizard-wait-copy">Google may need a few minutes to finish. Keep this page open; we'll continue automatically.</p>}
      </div>}
-    {error&&<div className="vn-wizard-error" role="alert">
+    {needTerms&&!ready&&<section className="vn-wizard-terms" aria-labelledby="vn-terms-title">
+      <div className="vn-wizard-terms-heading">
+       <span className="vn-wizard-terms-icon"><ShieldCheck size={25}/></span>
+       <div>
+        <span className="vn-wizard-terms-kicker">ONE-TIME GOOGLE SETUP</span>
+        <h2 id="vn-terms-title">Accept Firebase's terms to continue</h2>
+       </div>
+      </div>
+      <p>Google needs you to accept its Firebase terms the first time you use Firebase. This is a normal step in creating your group's workspace, not a problem with your account.</p>
+      <ol>
+       <li>Open Firebase in a new tab using the same Google account you just authorized.</li>
+       <li>Review and accept Google's Firebase terms if prompted. You don't need to create a project manually.</li>
+       <li>Return here and select <strong>I've accepted — Continue setup</strong>.</li>
+      </ol>
+      <a className="btn primary vn-wizard-terms-link" href={FIREBASE_TERMS_URL} target="_blank" rel="noopener noreferrer">
+       Open Firebase to accept terms <ExternalLink size={16}/>
+      </a>
+      <button type="button" className="btn secondary vn-wizard-terms-continue" onClick={continueWithGoogle} disabled={busy||authorizing}>
+       {authorizing?<Loader2 size={17} className="vn-wizard-spinner"/>:<ArrowRight size={17}/>}
+       {authorizing?'Connecting with Google…':"I've accepted — Continue setup"}
+      </button>
+      <p className="vn-wizard-terms-reassurance"><CheckCircle2 size={16}/> Your group project is saved. You won't need to start again.</p>
+      <details className="vn-wizard-terms-diagnostics">
+       <summary>Technical details (if needed)</summary>
+       <pre>{error}</pre>
+      </details>
+     </section>}
+    {error&&!needTerms&&<div className="vn-wizard-error" role="alert">
       <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':firestoreClientIssue?'Firestore access is not ready':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
       <p>{needTerms?
        'Google specifically requested Firebase Terms acceptance. Open the official Firebase Console, accept its terms, then continue this saved setup.':
@@ -264,9 +303,6 @@ export function GoogleSetupPilot(){
        permissionIssue?
        'Google may still be applying permissions or enabling an API for your new project. We retried automatically, but the request is still being denied. Wait another minute or two and continue this saved setup. If it repeatedly fails, verify that you are using the project owner’s Google account and check the API permissions.':
        'Your existing project has been remembered. You can continue with the same Google account without creating another project.'}</p>
-      {needTerms&&<a className="btn secondary" href={FIREBASE_TERMS_URL} target="_blank" rel="noreferrer">
-       Accept Firebase terms in Google Console <ExternalLink size={16}/>
-      </a>}
       {firestoreClientIssue&&checkpoint&&<div className="vn-wizard-help-links">
        <a href={`https://console.firebase.google.com/project/${checkpoint.projectId}/firestore/rules`} target="_blank" rel="noreferrer">Inspect the active Firestore rules <ExternalLink size={15}/></a>
       </div>}
