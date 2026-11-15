@@ -2,8 +2,10 @@ import {useState} from 'react';
 import {ClipboardCheck,Monitor,Trophy,Settings,ArrowRight,House,Volleyball,Database,Copy,FolderOpen} from 'lucide-react';
 import {activeGroup,encodeGroup,isIndependentGroupSite} from './groupConnection';
 import {connectedGroupName,firebaseConfig} from './firebase';
-export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'setup'|'manual-setup'|'groups';
+export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'owner-settings'|'setup'|'manual-setup'|'groups';
 export const modeHref=(mode:AppMode)=>{
+ if(isIndependentGroupSite&&mode==='owner-settings'&&activeGroup)
+  return 'https://volleyball-night.web.app/?g='+encodeGroup(activeGroup)+'&mode=owner-settings';
  if(isIndependentGroupSite&&['setup','manual-setup','groups'].includes(mode))
   return 'https://volleyball-night.web.app/?mode='+mode;
  if(['setup','manual-setup','groups'].includes(mode))return '/?mode='+mode;
@@ -19,7 +21,7 @@ const cards=[
  {mode:'scorekeeper' as const,title:'Scorekeeper',desc:'Track points and advance games',Icon:Trophy},
  {mode:'organizer' as const,title:'Organizer',desc:'Manage players, teams, and schedules',Icon:Settings}
 ];
-export function ModeHome(){
+export function ModeHome({protectedMode=false}:{protectedMode?:boolean}){
  const [copied,setCopied]=useState(false);
  const groupUrl=()=>{
   const u=new URL(location.href);
@@ -37,11 +39,12 @@ export function ModeHome(){
     <span className="vn-mode-card-icon"><Icon size={28}/></span><strong>{title}</strong><p>{desc}</p><span className="vn-mode-arrow"><ArrowRight size={20}/></span>
    </a>)}</div>
   <div className="vn-home-group-actions">
+   {activeGroup&&<a href={modeHref('owner-settings')}><Settings size={17}/> Owner access & PIN</a>}
    <a href={modeHref('groups')}><FolderOpen size={17}/> Find my groups</a>
    <a href={modeHref('setup')}><Database size={17}/> Create a group with Google</a>
    {activeGroup&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(groupUrl());setCopied(true)}catch{window.prompt('Copy the group link:',groupUrl())}}}><Copy size={17}/>{copied?'Link copied':'Copy group link'}</button>}
   </div>
-  <p className="vn-home-note">Open design preview: no sign-in or PIN required yet. Each group connects to its own live Firebase database.</p>
+  <p className="vn-home-note">{protectedMode?'Check-in and TV are open. Organizer and scorekeeper require the group PIN.':'Open design preview: no sign-in or PIN required yet. Each group connects to its own live Firebase database.'}</p>
  </main></div>;
 }
 export function ModeSwitch({floating=false}:{floating?:boolean}){

@@ -11,7 +11,7 @@ import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,read
 const OAUTH_ID_KEY='volleyball-night-oauth-pilot-client-id';
 const TERMS_PENDING_KEY='volleyball-night-firebase-terms-pending-project';
 const CONFIGURED_ID=import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string|undefined;
-const SCOPE='https://www.googleapis.com/auth/cloud-platform';
+const SCOPE='https://www.googleapis.com/auth/cloud-platform openid email profile';
 const FIREBASE_TERMS_URL='https://console.firebase.google.com/?forceCheckTos=true';
 type TokenResponse={access_token?:string;error?:string;error_description?:string};
 type TokenClient={requestAccessToken:(options?:{prompt?:string})=>void};

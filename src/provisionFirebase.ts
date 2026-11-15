@@ -3,6 +3,7 @@ import {doc,getDocFromServer,getFirestore,runTransaction,serverTimestamp} from '
 import {initial} from './model';
 import type {SetupNotify} from './setupProgress';
 import {validateGroup,type GroupConnection} from './groupConnection';
+import {googleAccount} from './accessAdmin';
 
 /** OAuth token is passed in memory only. Do not save bearer tokens anywhere. */
 type APIError=Error&{status?:number};
@@ -278,6 +279,30 @@ export async function completeFirebaseSetup(args:{projectId:string;groupName:str
  await whileGoogleActivates('Firestore database',notify,
   ()=>makeFirestore(projectId,token,region,notify));
  notify('Firestore database is ready.',{stage:'cloud',kind:'check'});
+ // A setup retry must never restore prototype rules on a protected group.
+ // This administrative read is possible even when client rules deny access.
+ try{
+  const status=await api<{fields?:{protected?:{booleanValue?:boolean}}}>(
+   `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/access/status`,token);
+  if(status.fields?.protected?.booleanValue===true)
+   throw Error('This group is already protected. Open it through Find my groups instead of resuming setup.');
+ }catch(e){if(statusOf(e)!==404)throw e;}
+ // Migration publishes rules before writing access/status. A retry in that
+ // small window must not downgrade the protected rules either.
+ try{
+  const release=await api<{rulesetName?:string}>(
+   `https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`,token);
+  if(release.rulesetName){
+   const ruleset=await api<{source?:{files?:Array<{content?:string}>}}>(
+    'https://firebaserules.googleapis.com/v1/'+release.rulesetName,token);
+   if(ruleset.source?.files?.some(file=>{
+    const content=file.content||'';
+    return /match\s+\/access\s*\//.test(content)||
+      (content.includes('liveSessions')&&content.trim()!==RULES_SOURCE.trim());
+   }))
+    throw Error('This group has different or protected Firestore access rules. Setup cannot replace them. Open the existing group or inspect its rules in Firebase.');
+  }
+ }catch(e){if(statusOf(e)!==404&&!serviceNotActive(e))throw e;}
  await whileGoogleActivates('Firestore access rules',notify,
   ()=>installRules(projectId,token,notify));
  notify('Firestore rules were published.',{stage:'cloud',kind:'check'});
@@ -286,5 +311,13 @@ export async function completeFirebaseSetup(args:{projectId:string;groupName:str
  notify('Firebase web application configured.',{stage:'cloud',kind:'check'});
  const group=validateGroup({version:1,name:groupName||projectId,config:web});
  await seedSession(group,notify);
+ const owner=await googleAccount(token);
+ const ownerUrl=`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/access/config`;
+ let existing:{fields?:Record<string,unknown>&{ownerSub?:{stringValue?:string}}}|null=null;
+ try{existing=await api(ownerUrl,token)}catch(e){if(statusOf(e)!==404)throw e;}
+ if(existing?.fields?.ownerSub?.stringValue&&existing.fields.ownerSub.stringValue!==owner.sub)
+  throw Error('This group is already bound to a different Google owner account. Select the account that created it.');
+ if(!existing?.fields?.ownerSub?.stringValue)
+  await api(ownerUrl,token,'PATCH',{fields:{...existing?.fields,ownerSub:{stringValue:owner.sub}}});
  return group;
 }
