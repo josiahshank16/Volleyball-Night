@@ -23,19 +23,16 @@ jobs:
         run: npm install
       - name: Build website
         run: npm run build
-      - name: Check Firebase authorization
-        id: credentials
+      - name: Verify Firebase deployment credential exists
         env:
           FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT }}
         run: |
           if [ -z "$FIREBASE_CREDENTIALS" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Automatic deployment awaits the FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT repository secret. Build succeeded; live Hosting remains unchanged."
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Firebase Hosting has NOT been updated. Set GitHub Actions repository secret FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT. Run 'npx --yes firebase-tools@latest init hosting:github' once in your Codespace to create the credential and GitHub secret."
+            exit 1
           fi
+          echo "Firebase deployment credential is configured."
       - name: Deploy verified build to the live Firebase Hosting site
-        if: steps.credentials.outputs.ready == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOLLEYBALL_NIGHT }}
