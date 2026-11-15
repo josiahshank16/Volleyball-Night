@@ -254,3 +254,11 @@
 
 /* Explain the expected cloud activation delay while checking automatically. */
 .vn-wizard-substatus{font-size:11px;line-height:1.55;color:#698a89;text-align:center;margin:7px 0 0;font-weight:500}
+
+/* Group creation uses genuine stage labels with activity instead of misleading retry counts. */
+.vn-wizard-step>span.vn-wizard-step-dot{width:28px;height:28px;background:#e2e9ed;border-radius:50%;font-size:0}
+.vn-wizard-activity{display:flex;align-items:center;justify-content:center;margin:18px 0 6px;color:#12826d}
+.vn-wizard-activity .vn-wizard-spinner{width:35px;height:35px;stroke-width:1.9}
+.vn-wizard-wait-copy{max-width:430px;margin:6px auto 0;font-size:12px;line-height:1.55;text-align:center;color:#678584}
+.vn-wizard-progress:has(.vn-wizard-activity) .vn-wizard-status{margin-top:7px}
+@media (prefers-reduced-motion:reduce){.vn-wizard-spinner{animation-duration:3s}}

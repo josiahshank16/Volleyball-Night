@@ -80,10 +80,10 @@ export function GoogleSetupPilot(){
   const s=message.toLowerCase();
   if(/still activating|still finishing|waiting for|checking automatically|may take a few minutes|retrying automatically/.test(s)){
    setPhase(2);
-   setStatus('Google is finishing your cloud setup. This may take a few minutes. We’ll keep checking automatically.');
+   setStatus('Finishing your cloud setup…');
   }else if(s.includes('firestore')||s.includes('database')||s.includes('rules')||s.includes('web app')||s.includes('session')){
    setPhase(2);
-   setStatus('Preparing your group database and volleyball workspace…');
+   setStatus('Preparing your group database and workspace…');
   }else if(s.includes('firebase')||s.includes('api')){
    setPhase(2);
    setStatus('Connecting Firebase to your group…');
@@ -244,14 +244,16 @@ export function GoogleSetupPilot(){
        {progressLabels.map((label,i)=>{
         const at=i as ProgressStep,cls=progressOf(at,phase);
         return <div className={'vn-wizard-step '+cls} key={label}>
-         {cls==='done'?<CheckCircle2 size={17}/>:cls==='active'&&busy?<Loader2 size={17} className="vn-wizard-spinner"/>:<span>{i+1}</span>}
+         {cls==='done'?<CheckCircle2 size={17}/>:cls==='active'&&busy?<Loader2 size={17} className="vn-wizard-spinner"/>:<span aria-hidden="true" className="vn-wizard-step-dot"/>}
          <small>{label}</small>
         </div>;
        })}
       </div>
+      {busy&&<div className="vn-wizard-activity" aria-label="Setup is still running">
+       <Loader2 size={35} className="vn-wizard-spinner" aria-hidden="true"/>
+      </div>}
       {status&&<p className="vn-wizard-status">{status}</p>}
-      {busy&&/still activating|still finishing|waiting for|checking automatically|may take a few minutes|retrying automatically/i.test(technical)&&
-       <p className="vn-wizard-substatus">{technical}</p>}
+      {busy&&<p className="vn-wizard-wait-copy">Google may need a few minutes to finish. Keep this page open; we'll continue automatically.</p>}
      </div>}
     {error&&<div className="vn-wizard-error" role="alert">
       <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':firestoreClientIssue?'Firestore access is not ready':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>

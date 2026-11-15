@@ -92,7 +92,7 @@ async function makeFirestore(projectId:string,token:string,locationId:string,not
    if(attempt===8){
     throw new Error(`Cloud Firestore API is not active yet in project ${projectId}. Google reported it as disabled even after retries. Open https://console.cloud.google.com/apis/library/firestore.googleapis.com?project=${projectId}, enable it if needed, and retry this SAME project. Do not create another project.`);
    }
-   notify(`Google is still activating Cloud Firestore for ${projectId}. Waiting and retrying automatically (attempt ${attempt+1}/9)…`);
+   notify('Google is preparing your Firestore database. This may take a few minutes…');
    // Re-check (and enable if necessary) through Google's Service Usage API.
    await enableService(projectId,'firestore.googleapis.com',token,notify);
    await pause(Math.min(12000,2000+attempt*2000));
@@ -176,15 +176,13 @@ async function whileGoogleActivates<T>(
  label:string,notify:(message:string)=>void,work:()=>Promise<T>
 ):Promise<T>{
  const deadline=Date.now()+120_000;
- let checks=0;
  while(true){
   try{return await work();}
   catch(e){
    const message=(e as Error)?.message??'';
    const explicitBlock=/terms of service|accept.*terms|TOS_NOT_ACCEPTED|insufficient authentication scopes|billing account|required billing/i.test(message);
    if(statusOf(e)!==403||explicitBlock||Date.now()>=deadline)throw e;
-   checks++;
-   notify('Google is still activating your cloud project. This may take a few minutes. Checking '+label+' again ('+checks+')…');
+   notify('Google is preparing '+label+'. This may take a few minutes…');
    await pause(6000);
   }
  }
@@ -214,11 +212,9 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
   const db=getFirestore(app);
   const ref=doc(db,'liveSessions','current');
   const deadline=Date.now()+180_000; // Up to three minutes of automatic checking.
-  let checks=0;
   let lastError:unknown=null;
   let failedAt:'read'|'create'='read';
   while(true){
-   checks++;
    try{
     failedAt='read';
     // Force a server read: cached data alone is not proof of access.
@@ -248,7 +244,7 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
     }
     lastError=err;
     if(Date.now()>=deadline)break;
-    notify('Google is finishing your database and access rules. This may take a few minutes. Checking automatically ('+checks+')…');
+    notify('Google is finishing your database and access rules. This may take a few minutes…');
     await pause(5000);
    }
   }
