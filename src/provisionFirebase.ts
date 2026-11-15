@@ -29,6 +29,9 @@ async function api<T>(url:string,token:string,method='GET',body?:unknown):Promis
  return result as T;
 }
 const statusOf=(error:unknown)=>((error as APIError)?.status);
+const serviceNotActive=(error:unknown)=>statusOf(error)===403 &&
+ /(?:has not been used|is disabled|has been disabled|SERVICE_DISABLED|API has not been used)/i.test((error as Error)?.message??'');
+
 
 async function waitFor(base:string,name:string,token:string,notify:(message:string)=>void){
  for(let i=0;i<90;i++){
@@ -68,16 +71,33 @@ async function enableService(projectId:string,service:string,token:string,notify
 async function makeFirestore(projectId:string,token:string,locationId:string,notify:(message:string)=>void){
  const base='https://firestore.googleapis.com/v1';
  const db=`${base}/projects/${projectId}/databases/%28default%29`;
- try{
-  await api(db,token);
-  notify('The default Firestore database already exists.');
-  return;
- }catch(e){if(statusOf(e)!==404)throw e;}
- notify(`Creating Firestore database in ${locationId}…`);
  const url=`${base}/projects/${projectId}/databases?databaseId=%28default%29`;
- const op=await api<Operation>(url,token,'POST',{type:'FIRESTORE_NATIVE',locationId});
- if(op.name)await waitFor(base,op.name,token,notify);
- notify('Firestore database created.');
+ // Service Usage can finish its enable operation before Firestore actually
+ // accepts requests in a newly-created project. Keep the project ID and
+ // retry only Google's explicit API-disabled/not-yet-active response.
+ for(let attempt=0;attempt<9;attempt++){
+  try{
+   try{
+    await api(db,token);
+    notify('The default Firestore database already exists.');
+    return;
+   }catch(e){if(statusOf(e)!==404)throw e;}
+   notify(`Creating Firestore database in ${locationId}…`);
+   const op=await api<Operation>(url,token,'POST',{type:'FIRESTORE_NATIVE',locationId});
+   if(op.name)await waitFor(base,op.name,token,notify);
+   notify('Firestore database created.');
+   return;
+  }catch(e){
+   if(!serviceNotActive(e))throw e;
+   if(attempt===8){
+    throw new Error(`Cloud Firestore API is not active yet in project ${projectId}. Google reported it as disabled even after retries. Open https://console.cloud.google.com/apis/library/firestore.googleapis.com?project=${projectId}, enable it if needed, and retry this SAME project. Do not create another project.`);
+   }
+   notify(`Google is still activating Cloud Firestore for ${projectId}. Waiting and retrying automatically (attempt ${attempt+1}/9)…`);
+   // Re-check (and enable if necessary) through Google's Service Usage API.
+   await enableService(projectId,'firestore.googleapis.com',token,notify);
+   await pause(Math.min(12000,2000+attempt*2000));
+  }
+ }
 }
 export const RULES_SOURCE=`rules_version = '2';
 service cloud.firestore {
