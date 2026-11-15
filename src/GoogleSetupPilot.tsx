@@ -75,7 +75,7 @@ export function GoogleSetupPilot(){
  const [showAdvanced,setShowAdvanced]=useState(false);
  const [manualId,setManualId]=useState('');
  const [busy,setBusy]=useState(false);
- const [progressSlots,setProgressSlots]=useState(()=>initialCheckpoint?.stage==='complete'?SETUP_PROGRESS_SLOTS:initialCheckpoint?.stage==='created'?4:0);
+ const [progressSlots,setProgressSlots]=useState(()=>initialCheckpoint?.stage==='created'?4:0);
  const busyRef=useRef(false);
  const [authorizing,setAuthorizing]=useState(false);
  const authorizingRef=useRef(false);
