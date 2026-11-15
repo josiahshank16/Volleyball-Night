@@ -34,3 +34,13 @@ In **Organizer → Team builder**, use the grip beside a player's name to drag t
 ## Dependency audit
 
 See [DEPENDENCY-AUDIT.md](DEPENDENCY-AUDIT.md) for the current npm audit findings and why we haven't applied an unsafe forced Firebase downgrade.
+
+## Connect independent Firebase groups
+
+Visit **Connect another group's Firebase** on the home screen or open
+`/?mode=setup`. A guided wizard accepts the group's Firebase Web app
+configuration, initializes an empty Firestore session if needed, and
+generates a group link to use on other devices. Each group owns its
+data and Firestore usage, while sharing the same hosted UI.
+
+See [GROUP-SETUP.md](GROUP-SETUP.md) for exact setup and testing steps.

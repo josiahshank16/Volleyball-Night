@@ -1,6 +1,7 @@
 import {useEffect,useState,useRef,useCallback} from 'react';
 import {doc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firestore} from './firebase';
+import {groupLocalCacheKey,activeGroup} from './groupConnection';
 import {type AppState,load,save,exportState} from './model';
 
 // Open-access design prototype. The single document is readable and editable
@@ -33,7 +34,7 @@ const describe=(e:unknown)=>{
  return err.code?err.code+': '+(err.message??'Unknown error'):err.message??String(e);
 };
 export function useCloudState(){
- const [state,setState]=useState<AppState>(load);
+ const [state,setState]=useState<AppState>(()=>load(groupLocalCacheKey));
  const [status,setStatus]=useState<Status>('connecting');
  const [error,setError]=useState('');
  const [retry,setRetry]=useState(0);
@@ -43,12 +44,12 @@ export function useCloudState(){
  const connected=useRef(false);
  const queue=useRef<Promise<void>>(Promise.resolve());
  latest.current=state;
- useEffect(()=>{save(state)},[state]);
+ useEffect(()=>{save(state,groupLocalCacheKey)},[state]);
  useEffect(()=>{
   connected.current=false;setStatus('connecting');setError('');
   const off=onSnapshot(LIVE_REF,snap=>{
    try{
-    if(!snap.exists()){setMissing(true);setStatus('error');setError('No cloud session exists yet. An organizer can initialize one from Settings.');return;}
+    if(!snap.exists()){setMissing(true);setStatus('error');setError(activeGroup?'No shared session exists in this group yet. Open Group setup and initialize it.':'No cloud session exists yet. An organizer can initialize one from Settings.');return;}
     setMissing(false);
     const received=decode(snap.data());connected.current=true;
     if(pending.current===0){latest.current=received;setState(received);setStatus('connected');setError('');}

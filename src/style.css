@@ -106,3 +106,46 @@
 .team-person>button.team-drag-handle:focus-visible{outline:3px solid #188d78;outline-offset:2px}
 .team-person>button.team-drag-handle:hover{background:#d4ede5;color:#187c6a}
 @media(hover:none){.team-person>button.team-drag-handle{width:36px;max-width:36px;flex-basis:36px;height:38px}}
+
+/* Per-group Firebase setup: reusable single-site application */
+.vn-current-group{display:inline-flex;align-items:center;gap:7px;background:#e5f2ee;border:1px solid #cfe8df;padding:9px 15px;border-radius:999px;margin-top:17px;color:#14594c;font-size:13px;max-width:100%;flex-wrap:wrap}
+.vn-current-group span{font-size:11px;color:#537b72}
+.vn-home-group-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:15px;margin:27px 0 5px}
+.vn-home-group-actions a,.vn-home-group-actions button{font:inherit;display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#126c60;background:#fff;border:1px solid #bdded5;border-radius:11px;padding:11px 17px;cursor:pointer;font-weight:750;font-size:13px}
+.vn-home-group-actions a:hover,.vn-home-group-actions button:hover{background:#e4f5ef}
+.group-setup-shell{min-height:100vh;background:#edf4f7;color:#18394c}
+.group-setup-bar{max-width:950px;margin:auto;padding:20px 18px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.group-setup-main{max-width:900px;margin:0 auto;padding:14px 18px 80px}
+.group-setup-heading{text-align:center;margin:20px 0 30px}
+.group-setup-heading h1{font-size:clamp(29px,4vw,42px);margin:12px 0}
+.group-setup-heading p{max-width:690px;margin:auto;color:#58788b;line-height:1.6}
+.group-setup-card,.group-setup-current{background:white;border:1px solid #dce9ef;border-radius:18px;box-shadow:0 10px 36px #143d4810;padding:26px}
+.group-setup-step{display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;padding:23px 0;border-bottom:1px solid #e8eef2}
+.group-setup-step:first-child{padding-top:0}
+.group-setup-step:last-child{border-bottom:0;padding-bottom:0}
+.group-setup-step>span{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#e0f3ea;color:#137d6a;font-weight:800}
+.group-setup-step h2{font-size:21px;margin:2px 0 8px}
+.group-setup-step p{font-size:14px;color:#587082;line-height:1.65;margin:8px 0 12px}
+.group-setup-step a{display:inline-flex;align-items:center;gap:6px;color:#127a68;font-size:13px;font-weight:750;margin:4px 0 14px}
+.group-setup-step details{margin-top:13px}
+.group-setup-step summary{cursor:pointer;font-size:13px;font-weight:650}
+.group-setup-code{white-space:pre-wrap;overflow-wrap:anywhere;background:#122b3d;color:#e6f7f2;font-size:11px;line-height:1.6;padding:16px;border-radius:10px;max-height:310px;overflow:auto}
+.group-setup-fields{display:flex;flex-direction:column;gap:16px;margin:17px 0}
+.group-setup-fields label,.group-setup-share label{display:flex;flex-direction:column;gap:8px;font-weight:720;font-size:13px}
+.group-setup-fields input,.group-setup-fields textarea,.group-setup-share input{width:100%;max-width:100%;border:1px solid #bfcfdb;border-radius:9px;padding:12px;font:inherit;color:#1b3e4b;background:white}
+.group-setup-fields textarea{font-family:ui-monospace,monospace;font-size:12px;min-height:145px;resize:vertical}
+.group-setup-fields input:focus,.group-setup-fields textarea:focus{outline:2px solid #279e88;outline-offset:1px}
+.group-setup-success{display:flex;align-items:center;gap:10px;background:#e1f7ea;color:#125b40!important;border-radius:10px;padding:13px}
+.group-setup-ready{border:1px solid #b9e4c9;border-radius:12px;padding:19px;background:#f5fcf8;margin-top:18px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.group-setup-ready h3{margin:0;font-size:20px}
+.group-setup-ready p{margin:0}
+.group-setup-share{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-top:5px}
+.group-setup-share label{width:100%}
+.group-setup-share input{font-size:12px}
+.group-setup-muted{font-size:12px!important;color:#718899!important;line-height:1.5}
+.group-setup-current{margin-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.group-setup-current h2{font-size:18px;margin:0}
+.group-setup-current p{margin:0;color:#587082;font-size:13px;line-height:1.5}
+.group-setup-current .group-setup-muted{display:flex;align-items:center;gap:8px}
+.group-setup-main>.group-setup-card .btn{display:inline-flex;margin:7px 9px 7px 0}
+@media(max-width:600px){.group-setup-bar{align-items:flex-start;flex-direction:column}.group-setup-card{padding:17px}.group-setup-step{grid-template-columns:30px minmax(0,1fr);gap:9px}.group-setup-step>span{width:29px;height:29px}.group-setup-step h2{font-size:18px}}
