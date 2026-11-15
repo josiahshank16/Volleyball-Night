@@ -22,6 +22,8 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build website
+        env:
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.VITE_GOOGLE_OAUTH_CLIENT_ID }}
         run: npm run build
       - name: Verify Firebase deployment credential exists
         env:

@@ -76,9 +76,19 @@ Cloud project intact.
 The original Volleyball Night OAuth Web Client ID remains required
 for Google Identity Services. On an existing development browser it
 is remembered locally from prior tests. To make the button work for
-new browsers automatically, configure
-`VITE_GOOGLE_OAUTH_CLIENT_ID` in the Vite build or put the **public**
-Web Client ID in app configuration.
+new browsers automatically, create a GitHub **Actions repository variable**
+(not a secret) named `VITE_GOOGLE_OAUTH_CLIENT_ID` with the public
+Web OAuth Client ID. The automatic Hosting deployment workflow will
+include that variable when it builds the site. This is a **one-time
+developer configuration**, not something participating groups must do.
+
+For a manual deployment from Codespaces, add that same public value to a
+local untracked `.env.local` file as
+`VITE_GOOGLE_OAUTH_CLIENT_ID=YOUR_PUBLIC_WEB_CLIENT_ID` before running
+`npm run deploy:hosting`. Do not commit `.env.local` or any OAuth
+client secret. A local public Client ID cached from previous testing
+can also be entered through Developer tools, but that cache applies
+only to the current browser.
 
 Create the OAuth client in Google Auth Platform with the live site's
 authorized JavaScript origin (for example
