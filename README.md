@@ -37,16 +37,13 @@ See [DEPENDENCY-AUDIT.md](DEPENDENCY-AUDIT.md) for the current npm audit finding
 
 ## Connect independent Firebase groups
 
-Visit **Connect another group's Firebase** on the home screen or open
-`/?mode=setup`. A guided wizard accepts the group's Firebase Web app
-configuration, initializes an empty Firestore session if needed, and
-generates a group link to use on other devices. Each group owns its
-data and Firestore usage, while sharing the same hosted UI.
+Groups can use **Create a group with Google** from the home screen or visit `/?mode=setup`. After one Google authorization, Volleyball Night automatically requests a separate Google Cloud project, activates Firebase, creates Firestore, publishes its prototype rules, and initializes the first session. Interrupted setup saves the project ID locally for safe retry.
 
-See [GROUP-SETUP.md](GROUP-SETUP.md) for exact setup and testing steps.
+The manual **Bring your own Firebase** wizard remains at `/?mode=manual-setup` for advanced use. See [GOOGLE-OAUTH-EXPERIMENT.md](GOOGLE-OAUTH-EXPERIMENT.md) for guided setup and testing.
 
-## Experimental Google one-click group setup
 
-The first OAuth experiment is available from the home screen, or at `/?mode=setup`. It tests Google authorization, Google Cloud project-management API access and (after explicit confirmation) creating an independent test Google Cloud project. It does **not** yet add Firebase/Firestore automatically. The original manual Firebase connection wizard is now available at `/?mode=manual-setup`.
+## One-step Google setup (preview)
 
-See [GOOGLE-OAUTH-EXPERIMENT.md](GOOGLE-OAUTH-EXPERIMENT.md) for the one-time developer OAuth client configuration and test instructions.
+The group onboarding screen now asks for a **group name**, a **project authorization acknowledgment**, and **Continue with Google**. The app runs project creation and Firebase provisioning as one continuous flow, preserving the project ID before making network requests. If a new Google account must accept official Firebase terms, the wizard opens the official Google terms page and resumes afterward. Google access tokens are kept in memory only.
+
+Our Google OAuth client must be configured once by the application developer. Project creation and Firebase provisioning are tested, but this streamlined UX hasn't yet been validated with a brand-new Google account.

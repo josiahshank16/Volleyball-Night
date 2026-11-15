@@ -1,123 +1,113 @@
-# Google OAuth group provisioning experiment
+# One-flow Google group onboarding — current preview
 
-This is a **proof of concept**, not a finished public onboarding service. Existing
-Volleyball Night players, sessions, and Hosting remain unchanged.
+The application uses one shared static Hosting site for the interface.
+Each volleyball group owns a separate Google Cloud/Firebase project, a
+Firestore database, and its own usage/quota. Participating groups do
+not need GitHub accounts or independent Hosting sites.
 
-## Goal
+## Expected user experience
 
-Test whether an individual organizer can sign in with Google and authorize
-our browser-hosted app to create their own Google Cloud project via
-Google Cloud Resource Manager. If it works, subsequent steps will add Firebase,
-create the Firestore database, install rules, register the web app, and set up
-the initial session.
+1. Open the Volleyball Night home screen and choose **Create a group with Google**.
+2. Enter the group name. The default Firestore location is **Iowa, US
+   (us-central1)**; it may be changed **before** any provisioning starts.
+   Firestore's location is permanent once the database is created.
+3. Read and check the authorization statement. This acknowledges that
+   Google Cloud resources will be created in the user's account.
+4. Click **Continue with Google**, select a Google account, and approve
+   Google's own OAuth consent prompt.
+5. The app creates a Google Cloud project, adds Firebase, enables needed
+   APIs, creates Firestore, publishes open prototype rules, registers
+   the web app, and initializes an empty live session.
+6. On success, click **Open my Volleyball Night** or copy the group link.
 
-### One-time developer configuration (only for our application)
+All provisioning operations run from the user's browser against
+Google's APIs using a temporary access token. The token is **not saved**.
 
-1. Open [Google Auth Platform → Clients](https://console.cloud.google.com/auth/clients?project=volleyball-night).
-2. Select **volleyball-night** (the project hosting the app).
-3. If prompted, configure Google Auth Platform Branding and Audience.
-   Choose **External**, **Testing** and add your own Google account to
-   **Test users**. Add the Google Cloud scope
-   `https://www.googleapis.com/auth/cloud-platform` if requested by Data Access.
-4. Create a **Web application** OAuth Client. In **Authorized JavaScript origins**,
-   add the live website origin, usually `https://volleyball-night.web.app`.
-   If you open the app at `https://volleyball-night.firebaseapp.com`,
-   add that origin separately. Origins contain no path, trailing slash,
-   or URL query.
-5. Copy the **Web Client ID** (ending in `.apps.googleusercontent.com`).
-   This is a public identifier. Do **not** use or share a client secret.
-6. Enable **Cloud Resource Manager API** in our `volleyball-night`
-   project if it is not enabled. The API is called through our OAuth client.
-   Google may require the associated APIs to be enabled on the quota
-   consumer project.
+## A first-ever Firebase user
 
-### Test the new UI
+Google requires each Google account to accept the official Firebase
+Terms of Service once. Our checkbox **does not** substitute for those
+terms and Google's APIs cannot accept them programmatically.
 
-After building and manually deploying the latest commit, open
-`https://volleyball-night.web.app/?mode=setup`.
+If Google blocks Firebase activation for this reason, the screen
+provides the official **Firebase Terms acceptance** link:
+https://console.firebase.google.com/?forceCheckTos=true
 
-1. Enter a new group name such as **Volleyball OAuth Test**.
-2. Check the authorization acknowledgment.
-3. Expand **Show one-time developer configuration** and paste the Web
-   Client ID. This is saved only in your browser during the experiment.
-4. Press **Continue with Google**. Choose your account and grant the
-   requested permissions. Google's consent screen is authoritative.
-5. The app calls `GET https://cloudresourcemanager.googleapis.com/v3/projects/992829373528`
-   with the short-lived OAuth token to confirm it can call Cloud Resource
-   Manager from the browser.
-6. If successful, you get an optional **Create a separate test Cloud project**
-   button. It explicitly confirms before sending
-   `POST https://cloudresourcemanager.googleapis.com/v3/projects`.
-   A randomly generated project ID prevents conflicts. The app tracks
-   the long-running Google operation and displays the created project ID.
-7. If anything fails, **stop and share the error message**. Don't keep
-   clicking the create button if a project might already have been created.
+Once the user accepts the terms, they return to the same Volleyball
+Night setup screen and click **Continue setup with Google**. No
+second project should be created.
 
-**Caution:** The test project is a real Google Cloud resource owned by your
-Google account, although the experiment does not enable billing or
-Firestore. Project creation may be subject to quotas and organization
-policies. This test does not delete projects automatically.
+A Google API 403 can also mean missing IAM permissions or another
+Google API problem; the screen provides the detailed technical error.
+Do not automatically assume every 403 is only a terms issue.
 
-### Important limits
+## Resume after errors, reloads, or expired OAuth tokens
 
-- It does **not yet** add Firebase, a Firestore database, Firestore rules,
-  or a Volleyball Night player session. This tests the first provisioning
-  steps before building the rest.
-- It requests a broad **Google Cloud Platform OAuth scope**. The access
-  token stays in React component memory and is not written to localStorage
-  or GitHub. The browser saves only the **public OAuth Client ID**.
-- Google's OAuth testing and verification rules apply, including
-  authorized origins and test-user restrictions.
-- Google's Firebase Terms require direct user acceptance through the
-  Firebase Console when applicable; checkboxes on our site do not
-  replace acceptance.
-- The app uses the Google's official JavaScript Identity Services token
-  client; we don't impersonate Google sign-in.
-- If Google Cloud restricts browser API calls, we may have to adjust our
-  architecture; the test will show that clearly.
+The application saves a **non-sensitive checkpoint** in the browser
+before submitting the Cloud project creation request. It includes the
+project ID, group name, region, and setup stage, but **never** stores
+Google bearer tokens, client secrets, or passwords.
 
-### Reference docs
+On retry, Volleyball Night checks the existing project ID first.
+- If the project exists, it resumes Firebase provisioning.
+- If creation was interrupted, it checks and retries **the same ID**.
+- If Firebase, Firestore, rules, or web app were already provisioned,
+  the setup code attempts to reuse those existing resources.
+- After success, the browser remembers the public group config and
+  its share link for reopening.
 
-- [Google Identity Services JavaScript](https://developers.google.com/identity/oauth2/web/guides/load-3p-authorization-library)
-- [Cloud Resource Manager project creation](https://docs.cloud.google.com/resource-manager/reference/rest/v3/projects/create)
-- [Firebase project setup via REST](https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project)
+Google's browser OAuth token model requires a user gesture to obtain
+another access token once the first expires; the Resume/Continue
+button asks Google to re-authorize when necessary.
 
-## Stage 2 — Automatic Firebase provisioning (added November 15, 2026)
+The previous experimental saved project ID is migrated automatically,
+so existing test projects are reused.
 
-The OAuth proof-of-concept successfully created a Google Cloud project.
-The **Finish Firebase and Firestore setup** button now tests the rest of
-the provisioning workflow using that SAME project:
+**Important:** Browser storage is not a cross-device account recovery
+database. If a user changes devices midway through setup, they must
+open **Developer tools and recovery**, locate their existing project
+ID in Google Cloud Console, and select **Resume this project**. Do
+not use **Set up a different group** to troubleshoot an incomplete
+setup; it clears the local checkpoint but leaves any existing Google
+Cloud project intact.
 
-1. Check and enable the required Google/Firebase APIs through Service Usage.
-2. Add Firebase to the existing Google Cloud project using Firebase Management REST API.
-3. Create the project's `(default)` Firestore Standard-edition database in the selected region, if missing.
-4. Publish Volleyball Night's deliberately open prototype Firestore rules.
-5. Register a Firebase Web app and obtain the public web configuration.
-6. Initialize an empty `liveSessions/current` document with the existing app schema.
-7. Generate a group URL and offer to switch to the new independent group.
+## Developer configuration (one-time only)
 
-**Use the exact project ID that succeeded in the earlier test.** On
-`/?mode=setup`, open **Resume a project created earlier** and paste its
-ID if it is not remembered. The input and group name are persisted in
-this browser, but no OAuth tokens are saved. Continue with Google to
-authorize, then select **Finish Firebase and Firestore setup**. The
-browser asks for confirmation before provisioning.
+The original Volleyball Night OAuth Web Client ID remains required
+for Google Identity Services. On an existing development browser it
+is remembered locally from prior tests. To make the button work for
+new browsers automatically, configure
+`VITE_GOOGLE_OAUTH_CLIENT_ID` in the Vite build or put the **public**
+Web Client ID in app configuration.
 
-A partial failure can be retried on the same project: the workflow
-checks existing Firebase and Firestore resources and won't intentionally
-recreate the database or web app. When publishing prototype rules,
-retrying may create a new immutable ruleset. **Do not create additional
-projects if a step fails.**
+Create the OAuth client in Google Auth Platform with the live site's
+authorized JavaScript origin (for example
+`https://volleyball-night.web.app`). Enable testing access for
+approved Google accounts until the app is verified for broader use.
 
-The setup uses the requesting Google account's permissions, not the
-Volleyball Night Hosting project's Firebase quota. Potential blockers:
-Google account Firebase terms acceptance, disabled APIs, IAM
-permissions, service quotas, and browser CORS limitations. Errors
-identify the step that failed where possible.
+The app is still a deliberately open prototype. Anyone with a
+group's link can change that group's data. OAuth in this onboarding
+flow grants project creation rights; it does NOT authenticate or
+restrict kiosk, scorekeeper, TV, or organizer access.
 
-No new Google Cloud project is created when you click **Finish setup**.
-The Google Cloud project-creation button is separate and requires
-explicit confirmation.
+## Repeatable tests without new Google accounts
 
-**Data note:** Firestore is empty for new groups; existing session data
-is never copied into them from the original Volleyball Night project.
+Existing Google testers can create additional test projects (within
+Google's project quota), or open a completed group again to test its
+share link and synchronization. Use **Set up a different group** only
+when intentionally creating another real Google Cloud project.
+
+Google's Firebase Terms acceptance is account-wide and cannot be
+reset to recreate the first-time consent experience. Reserve unused
+Google accounts for the final first-time onboarding test.
+
+## References
+
+- Google Identity Services:
+  https://developers.google.com/identity/oauth2/web/guides/use-token-model
+- Google Cloud project create API:
+  https://docs.cloud.google.com/resource-manager/reference/rest/v3/projects/create
+- Firebase project REST provisioning:
+  https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project
+- Firebase Terms:
+  https://firebase.google.com/docs/projects/use-firebase-with-existing-cloud-project
