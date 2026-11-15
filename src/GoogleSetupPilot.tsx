@@ -3,7 +3,7 @@ import {useRef,useState} from 'react';
 import {AlertCircle,ArrowRight,CheckCircle2,Copy,ExternalLink,KeyRound,Loader2,RotateCcw,ShieldCheck,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
-import {advanceSetupProgress,CLOUD_CHECK_SLOTS,SETUP_PROGRESS_SLOTS,type SetupProgressEvent} from './setupProgress';
+import {advanceSetupProgress,SETUP_PROGRESS_SLOTS,type SetupProgressEvent} from './setupProgress';
 import {activateGroup,encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
