@@ -2,8 +2,12 @@
 import {useState} from 'react';
 import {AlertCircle,ArrowRight,CheckCircle2,ExternalLink,KeyRound,Loader2,Volleyball} from 'lucide-react';
 import {ModeSwitch,modeHref} from './ModeHome';
+import {completeFirebaseSetup} from './provisionFirebase';
+import {activateGroup,encodeGroup,type GroupConnection} from './groupConnection';
 
 const STORED_ID='volleyball-night-oauth-pilot-client-id';
+const LAST_PROJECT='volleyball-night-last-test-project';
+const LAST_GROUP='volleyball-night-last-test-group';
 const CONFIGURED_ID=import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string|undefined;
 const SCOPE='https://www.googleapis.com/auth/cloud-platform';
 type TokenResponse={access_token?:string;error?:string;error_description?:string;scope?:string};
@@ -43,14 +47,16 @@ async function waitOperation(base:string,name:string,token:string){
 }
 export function GoogleSetupPilot(){
  const [clientId,setClientId]=useState(()=>CONFIGURED_ID||localStorage.getItem(STORED_ID)||'');
- const [groupName,setGroupName]=useState('');
+ const [groupName,setGroupName]=useState(()=>localStorage.getItem(LAST_GROUP)||'');
  const [agreed,setAgreed]=useState(false);
  const [authorized,setAuthorized]=useState(false);
  const [token,setToken]=useState('');
  const [busy,setBusy]=useState(false);
  const [status,setStatus]=useState('');
  const [failure,setFailure]=useState('');
- const [projectId,setProjectId]=useState('');
+ const [projectId,setProjectId]=useState(()=>localStorage.getItem(LAST_PROJECT)||'');
+ const [region,setRegion]=useState('us-central1');
+ const [readyGroup,setReadyGroup]=useState<GroupConnection|null>(null);
  const [showTech,setShowTech]=useState(!CONFIGURED_ID);
  async function connect(){
   setFailure('');setStatus('Opening Google authorization…');setAuthorized(false);setToken('');
@@ -86,21 +92,47 @@ export function GoogleSetupPilot(){
   try{
    const created=await googleRequest<Operation>('https://cloudresourcemanager.googleapis.com/v3/projects',token,'POST',{projectId:id,displayName:'Volleyball Night - '+groupName.trim().slice(0,50)});
    setProjectId(id);
+   localStorage.setItem(LAST_PROJECT,id);
+   localStorage.setItem(LAST_GROUP,groupName.trim());
    if(created.name){
     setStatus('Google accepted the project creation request. Waiting for it to finish…');
     await waitOperation('https://cloudresourcemanager.googleapis.com/v3',created.name,token);
    }
-   setStatus('Success! Google created your independent Cloud project. The next phase is automatically adding Firebase and Firestore to this project.');
+   setStatus('Your independent Cloud project was created! Select Finish Firebase setup to provision the database, rules, web app, and empty session.');
   }catch(e){
    setFailure((e as Error).message);
    setStatus(projectId?'The earlier project may already exist. Check the Cloud Console.':'The setup stopped before completing project creation.');
   }finally{setBusy(false);}
  }
+
+ async function finishFirebase(){
+  if(!token||!authorized||!agreed||!projectId||!groupName.trim())return;
+  if(!window.confirm(`Complete setup of the existing project ${projectId}? This will enable Firebase APIs, create the default Firestore database in ${region} if missing, publish open prototype rules for this new project, register a web app, and initialize the Volleyball Night session. The database location can't be changed later.`))return;
+  setBusy(true);setFailure('');setReadyGroup(null);
+  try{
+   const group=await completeFirebaseSetup({projectId,groupName,region,token,notify:setStatus});
+   setReadyGroup(group);
+   setStatus('Success! Firebase, Firestore, rules, a web app, and the first empty session are configured for this group.');
+  }catch(e){
+   setFailure((e as Error).message);
+   setStatus('Setup paused. The successfully completed steps remain in this project. You can retry with the SAME project ID after resolving the error.');
+  }finally{setBusy(false);}
+ }
+ const groupShareUrl=readyGroup?(()=>{
+  const u=new URL(location.href);u.search='';u.hash='';
+  u.searchParams.set('g',encodeGroup(readyGroup));
+  return u.toString();
+ })():'';
+ function rememberProjectId(v:string){
+  setProjectId(v);setReadyGroup(null);
+  if(v)localStorage.setItem(LAST_PROJECT,v);
+  else localStorage.removeItem(LAST_PROJECT);
+ }
  return <div className="group-setup-shell"><header className="group-setup-bar"><div className="vn-home-logo"><Volleyball size={24}/><span>VOLLEYBALL <b>NIGHT</b></span></div><ModeSwitch/></header>
  <main className="group-setup-main">
  <div className="group-setup-heading"><span className="eyebrow">AUTOMATIC SETUP EXPERIMENT</span><h1>Create your volleyball group</h1><p>We're testing whether Google can create each group's own cloud project with a simple sign-in, without GitHub or manual Firebase configuration.</p></div>
  <section className="group-setup-card oauth-pilot-card">
-  <div className="group-setup-fields"><label htmlFor="oauth-group-name">Group name<input id="oauth-group-name" placeholder="e.g. Grace Volleyball" value={groupName} maxLength={55} onChange={e=>setGroupName(e.target.value)}/></label></div>
+  <div className="group-setup-fields"><label htmlFor="oauth-group-name">Group name<input id="oauth-group-name" placeholder="e.g. Grace Volleyball" value={groupName} maxLength={55} onChange={e=>{setGroupName(e.target.value);localStorage.setItem(LAST_GROUP,e.target.value)}}/></label></div>
   <label className="oauth-agreement"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span>I authorize Volleyball Night to request Google Cloud project creation on my behalf. I understand this test creates resources under my Google account and that I control any future billing or upgrades.</span></label>
   <button type="button" className="btn primary oauth-google-button" onClick={connect} disabled={busy||!agreed||!groupName.trim()}><KeyRound size={18}/> Continue with Google</button>
   {status&&<p className="oauth-status" role="status">{busy&&<Loader2 size={17}/>} {status}</p>}
@@ -108,8 +140,33 @@ export function GoogleSetupPilot(){
   {authorized&&<div className="group-setup-ready"><h3><CheckCircle2 size={19}/> Google authorization works!</h3>
    <p>Your browser has successfully accessed the Cloud project-management API using your Google account. This is the first OAuth milestone.</p>
    {!projectId&&<button type="button" className="btn primary" onClick={createProject} disabled={busy}><ArrowRight size={18}/> Create a separate test Cloud project</button>}
-   {projectId&&<p>Test project ID: <code>{projectId}</code></p>}
+   {projectId&&<div className="oauth-finish">
+     <p>Existing test project: <code>{projectId}</code></p>
+     <p>Next, Volleyball Night will try to add Firebase, create a Firestore database, publish the rules, register a web app, and initialize the first session.</p>
+     <label htmlFor="db-region">Firestore location (cannot change later)</label>
+     <select id="db-region" value={region} onChange={e=>setRegion(e.target.value)} disabled={busy||!!readyGroup}>
+      <option value="us-central1">United States · Iowa (us-central1)</option>
+      <option value="nam5">United States · Multi-region (nam5)</option>
+      <option value="europe-west1">Europe · Belgium (europe-west1)</option>
+      <option value="eur3">Europe · Multi-region (eur3)</option>
+     </select>
+     {!readyGroup&&<button type="button" className="btn primary" onClick={finishFirebase} disabled={busy||!groupName.trim()}><ArrowRight size={18}/> Finish Firebase and Firestore setup</button>}
+     {readyGroup&&<div className="oauth-group-complete">
+      <h3><CheckCircle2 size={19}/> {readyGroup.name} is ready!</h3>
+      <p>Firebase project: <code>{readyGroup.config.projectId}</code></p>
+      <button type="button" className="btn primary" onClick={()=>activateGroup(readyGroup)}>Open this group's Volleyball Night</button>
+      <label htmlFor="oauth-share-link">Group link for volunteers</label>
+      <input id="oauth-share-link" type="text" readOnly value={groupShareUrl} onFocus={e=>e.currentTarget.select()}/>
+      <button type="button" className="btn secondary" onClick={()=>{void navigator.clipboard.writeText(groupShareUrl).catch(()=>window.prompt('Copy your group link:',groupShareUrl))}}>Copy group link</button>
+     </div>}
+   </div>}
   </div>}
+  <details className="oauth-resume-panel"><summary>Resume a project created earlier</summary>
+   <p>If you created the test Cloud project before this feature was added, copy its project ID from Google Cloud Console. This resumes setup without creating a second project.</p>
+   <label htmlFor="resume-project">Existing test project ID</label>
+   <input id="resume-project" value={projectId} onChange={e=>rememberProjectId(e.target.value.trim())} placeholder="vn-grace-volley-abc12"/>
+   <p className="group-setup-muted">Your Google authorization is still required. This only remembers the project ID, never the OAuth token.</p>
+  </details>
  </section>
  <section className="group-setup-current oauth-advanced">
   <button type="button" className="oauth-settings-toggle" onClick={()=>setShowTech(x=>!x)}>{showTech?'Hide':'Show'} one-time developer configuration</button>

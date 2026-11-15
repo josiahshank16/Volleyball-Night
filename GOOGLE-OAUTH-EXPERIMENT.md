@@ -81,3 +81,43 @@ policies. This test does not delete projects automatically.
 - [Google Identity Services JavaScript](https://developers.google.com/identity/oauth2/web/guides/load-3p-authorization-library)
 - [Cloud Resource Manager project creation](https://docs.cloud.google.com/resource-manager/reference/rest/v3/projects/create)
 - [Firebase project setup via REST](https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project)
+
+## Stage 2 — Automatic Firebase provisioning (added November 15, 2026)
+
+The OAuth proof-of-concept successfully created a Google Cloud project.
+The **Finish Firebase and Firestore setup** button now tests the rest of
+the provisioning workflow using that SAME project:
+
+1. Check and enable the required Google/Firebase APIs through Service Usage.
+2. Add Firebase to the existing Google Cloud project using Firebase Management REST API.
+3. Create the project's `(default)` Firestore Standard-edition database in the selected region, if missing.
+4. Publish Volleyball Night's deliberately open prototype Firestore rules.
+5. Register a Firebase Web app and obtain the public web configuration.
+6. Initialize an empty `liveSessions/current` document with the existing app schema.
+7. Generate a group URL and offer to switch to the new independent group.
+
+**Use the exact project ID that succeeded in the earlier test.** On
+`/?mode=setup`, open **Resume a project created earlier** and paste its
+ID if it is not remembered. The input and group name are persisted in
+this browser, but no OAuth tokens are saved. Continue with Google to
+authorize, then select **Finish Firebase and Firestore setup**. The
+browser asks for confirmation before provisioning.
+
+A partial failure can be retried on the same project: the workflow
+checks existing Firebase and Firestore resources and won't intentionally
+recreate the database or web app. When publishing prototype rules,
+retrying may create a new immutable ruleset. **Do not create additional
+projects if a step fails.**
+
+The setup uses the requesting Google account's permissions, not the
+Volleyball Night Hosting project's Firebase quota. Potential blockers:
+Google account Firebase terms acceptance, disabled APIs, IAM
+permissions, service quotas, and browser CORS limitations. Errors
+identify the step that failed where possible.
+
+No new Google Cloud project is created when you click **Finish setup**.
+The Google Cloud project-creation button is separate and requires
+explicit confirmation.
+
+**Data note:** Firestore is empty for new groups; existing session data
+is never copied into them from the original Volleyball Night project.

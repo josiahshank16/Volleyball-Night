@@ -171,3 +171,16 @@
 .oauth-back-link{color:#597485;font-size:13px;text-align:center;margin:18px}
 .oauth-pilot-card .group-setup-ready h3{display:flex;align-items:center;gap:9px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Provision the group's own Firebase project after Google OAuth */
+.oauth-finish{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:11px;border-top:1px solid #d7e6df;padding-top:14px}
+.oauth-finish p{margin:3px 0}
+.oauth-finish label,.oauth-group-complete label,.oauth-resume-panel label{font-size:13px;font-weight:700;color:#294b58}
+.oauth-finish select{width:100%;padding:11px;border:1px solid #bbd2d7;border-radius:9px;background:white;font:inherit;font-size:13px;max-width:570px}
+.oauth-group-complete{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:10px;border-top:1px solid #bce6d0;padding-top:14px}
+.oauth-group-complete h3{margin:0;font-size:17px;color:#116b50}
+.oauth-group-complete input,.oauth-resume-panel input{width:100%;padding:11px;border:1px solid #c2d3da;border-radius:9px;font:inherit;font-size:12px}
+.oauth-resume-panel{border-top:1px solid #e5eef2;margin-top:24px;padding-top:17px;font-size:13px}
+.oauth-resume-panel summary{cursor:pointer;color:#167867;font-weight:700}
+.oauth-resume-panel p{color:#536e7d;line-height:1.55}
+.oauth-resume-panel input{margin:8px 0}
