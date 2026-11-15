@@ -1,5 +1,5 @@
 import {initializeApp,deleteApp} from 'firebase/app';
-import {doc,getDoc,getFirestore,runTransaction,serverTimestamp} from 'firebase/firestore';
+import {doc,getDocFromServer,getFirestore,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {initial} from './model';
 import {validateGroup,type GroupConnection} from './groupConnection';
 
@@ -118,45 +118,76 @@ service cloud.firestore {
 }`;
 async function installRules(projectId:string,token:string,notify:(message:string)=>void){
  const base='https://firebaserules.googleapis.com/v1';
- notify('Creating Volleyball Night Firestore rules…');
- // Rulesets are immutable. In the prototype, repeating this step can
- // create a new ruleset but safely updates only THIS group's release.
+ const releaseName='projects/'+projectId+'/releases/cloud.firestore';
+ // A previous attempt may already have published the correct rules.
+ // Do not publish another identical ruleset every time the user resumes:
+ // doing so can restart the security-rules propagation delay.
+ let existing:{rulesetName?:string}|null=null;
+ try{
+  existing=await api<{rulesetName?:string}>(base+'/'+releaseName,token);
+ }catch(e){
+  if(statusOf(e)!==404)throw e;
+ }
+ if(existing?.rulesetName){
+  notify('Checking the rules already published for your group…');
+  const current=await api<{source?:{files?:Array<{name?:string;content?:string}>}}>(base+'/'+existing.rulesetName,token);
+  if(current.source?.files?.some(file=>file.content?.trim()===RULES_SOURCE.trim())){
+   notify('The correct Firestore rules are already published. Waiting for them to become active…');
+   return;
+  }
+ }
+ notify('Publishing your group’s Firestore access rules…');
  let ruleset:{name:string}|undefined;
  for(let attempt=0;attempt<5;attempt++){
   try{
-   ruleset=await api<{name:string}>(`${base}/projects/${projectId}/rulesets`,token,'POST',{source:{files:[{name:'firestore.rules',content:RULES_SOURCE}]}});
+   ruleset=await api<{name:string}>(base+'/projects/'+projectId+'/rulesets',token,'POST',
+    {source:{files:[{name:'firestore.rules',content:RULES_SOURCE}]}});
    break;
   }catch(e){
-   // Google may still be activating Rules after projects.addFirebase.
-   // Retry only a *specific* API-not-enabled response, not general 403
-   // permission errors (those need IAM/account troubleshooting).
    if(!serviceNotActive(e))throw e;
    if(attempt===4){
-    throw new Error(`Google still reports Firebase Rules API as disabled in project ${projectId}. Open https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project=${projectId}, enable it if necessary, then continue the SAME group setup. Details: ${(e as Error).message}`);
+    throw new Error('Google still reports Firebase Rules API as disabled for project '+projectId+
+     '. Open https://console.cloud.google.com/apis/library/firebaserules.googleapis.com?project='+projectId+
+     ' and retry this same group. Details: '+(e as Error).message);
    }
-   notify('Google is activating Firebase Rules for this project. Retrying automatically…');
-   await pause(2000*(attempt+1));
+   notify('Firebase Rules is still activating. This may take a few minutes; checking again…');
+   await pause(4000*(attempt+1));
   }
  }
- if(!ruleset)throw Error('Google did not create a Firestore ruleset.');
- if(!ruleset.name)throw Error('Google did not return a Firestore ruleset name.');
- const releaseName=`projects/${projectId}/releases/cloud.firestore`;
- notify('Publishing the Firestore rules in your new project…');
- try{
-  await api(`${base}/${releaseName}`,token,'GET');
-  await api(`${base}/${releaseName}`,token,'PATCH',{release:{name:releaseName,rulesetName:ruleset.name},updateMask:'rulesetName'});
- }catch(e){
-  if(statusOf(e)!==404)throw e;
-  await api(`${base}/projects/${projectId}/releases`,token,'POST',{name:releaseName,rulesetName:ruleset.name});
+ if(!ruleset?.name)throw Error('Google did not return a new Firestore ruleset.');
+ if(existing){
+  await api(base+'/'+releaseName,token,'PATCH',
+   {release:{name:releaseName,rulesetName:ruleset.name},updateMask:'rulesetName'});
+ }else{
+  await api(base+'/projects/'+projectId+'/releases',token,'POST',
+   {name:releaseName,rulesetName:ruleset.name});
  }
- // Firebase's release API can accept a request before the effective rules
- // are available to Firestore. Verify that the release actually points to
- // the ruleset we just published before testing the browser SDK.
- const live=await api<{rulesetName?:string}>(`${base}/${releaseName}`,token);
+ const live=await api<{rulesetName?:string}>(base+'/'+releaseName,token);
  if(live.rulesetName!==ruleset.name){
-  throw new Error(`Firestore rules publication did not activate the expected ruleset for project ${projectId}. Expected ${ruleset.name}, got ${live.rulesetName??'no ruleset'}. Continue the SAME group setup to retry.`);
+  throw Error('Firestore rules release was not yet updated for project '+projectId+
+   '. Your group has been saved. Resume the same project.');
  }
- notify('Firestore rules release verified. Waiting for Firestore to apply it…');
+ notify('Firestore rules are published. Waiting for them to become active…');
+}
+/** Short-lived 403 responses are possible while a newly created Google project is activating.
+ * Only retry ambiguous permission errors for a limited period. Terms, IAM and
+ * other persistent errors still surface with their original details. */
+async function whileGoogleActivates<T>(
+ label:string,notify:(message:string)=>void,work:()=>Promise<T>
+):Promise<T>{
+ const deadline=Date.now()+120_000;
+ let checks=0;
+ while(true){
+  try{return await work();}
+  catch(e){
+   const message=(e as Error)?.message??'';
+   const explicitBlock=/terms of service|accept.*terms|TOS_NOT_ACCEPTED|insufficient authentication scopes|billing account|required billing/i.test(message);
+   if(statusOf(e)!==403||explicitBlock||Date.now()>=deadline)throw e;
+   checks++;
+   notify('Google is still activating your cloud project. This may take a few minutes. Checking '+label+' again ('+checks+')…');
+   await pause(6000);
+  }
+ }
 }
 async function findOrCreateWebApp(projectId:string,token:string,notify:(message:string)=>void):Promise<WebConfig>{
  const base='https://firebase.googleapis.com/v1beta1';
@@ -174,22 +205,28 @@ async function findOrCreateWebApp(projectId:string,token:string,notify:(message:
  return await api<WebConfig>(`${base}/${app.name}/config`,token);
 }
 async function seedSession(group:GroupConnection,notify:(message:string)=>void){
- // This is a REAL CLIENT SDK check. Admin access to the Cloud project
- // does not bypass Firestore security rules in the browser. A successful
- // ruleset publish may take a minute to propagate to new client reads.
- notify('Verifying Firestore access and initializing your first empty session…');
+ // New Firestore rules may not affect client reads immediately. Keep
+ // checking from the server for a bounded period instead of showing
+ // an error after the first few permission-denied responses.
+ notify('Verifying your new Firestore access rules. This may take a few minutes…');
  const app=initializeApp(group.config,'new-group-test-'+crypto.randomUUID());
  try{
   const db=getFirestore(app);
   const ref=doc(db,'liveSessions','current');
-  let lastPermissionError:unknown=null;
+  const deadline=Date.now()+180_000; // Up to three minutes of automatic checking.
+  let checks=0;
+  let lastError:unknown=null;
   let failedAt:'read'|'create'='read';
-  const attempts=18; // ~65+ seconds of retries; Google's rules may take a minute.
-  for(let attempt=0;attempt<attempts;attempt++){
+  while(true){
+   checks++;
    try{
     failedAt='read';
-    const snap=await getDoc(ref);
-    if(snap.exists()){notify('An existing session was found and preserved.');return;}
+    // Force a server read: cached data alone is not proof of access.
+    const snap=await getDocFromServer(ref);
+    if(snap.exists()){
+     notify('An existing session was found and preserved.');
+     return;
+    }
     failedAt='create';
     await runTransaction(db,async tx=>{
      const current=await tx.get(ref);
@@ -198,42 +235,45 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
       updatedAt:serverTimestamp(),updatedBy:'open-prototype'
      });
     });
-    // Verify client visibility. Never claim success for an unusable group.
     failedAt='read';
-    const created=await getDoc(ref);
-    if(!created.exists())throw Error('Firestore wrote the session but could not read it back. Retry this same group.');
+    const created=await getDocFromServer(ref);
+    if(!created.exists())throw Error('Firestore wrote the session but could not read it back. Please retry this saved group.');
     notify('Your empty Volleyball Night session is ready!');
     return;
    }catch(err){
     const error=err as {code?:string;message?:string};
-    const retryable=error.code==='permission-denied'||error.code==='unavailable';
-    if(!retryable){
-     throw new Error(`Firestore ${failedAt==='read'?'read':'session creation'} failed in ${group.config.projectId}: ${error.message??String(err)}`);
+    if(error.code!=='permission-denied'&&error.code!=='unavailable'){
+     throw new Error('Firestore '+(failedAt==='read'?'read':'session creation')+
+      ' failed in '+group.config.projectId+': '+(error.message??String(err)));
     }
-    lastPermissionError=err;
-    if(attempt===attempts-1)break;
-    notify(`Waiting for Firestore client access rules to activate… (${attempt+1}/${attempts})`);
-    await pause(4000);
+    lastError=err;
+    if(Date.now()>=deadline)break;
+    notify('Google is finishing your database and access rules. This may take a few minutes. Checking automatically ('+checks+')…');
+    await pause(5000);
    }
   }
-  const detail=(lastPermissionError as {message?:string})?.message??'Access denied';
-  throw new Error(`Firestore client ${failedAt==='read'?'READ':'CREATE'} permission was denied for liveSessions/current in ${group.config.projectId}, even after waiting for the new rules. The group's Cloud project and published rules were preserved. Open the Firebase Console → Firestore Database → Rules for THIS project and confirm that the rules allow get and create on liveSessions/current. Then continue setup using the same project. Original error: ${detail}`);
+  const detail=(lastError as {message?:string})?.message??'Access denied';
+  throw Error('Firestore client '+(failedAt==='read'?'READ':'CREATE')+
+   ' access is still not available for liveSessions/current in '+group.config.projectId+
+   ' after three minutes of checking. Your project and group setup are saved. Wait another minute or two and select Continue setup with Google to retry; if it still fails, inspect this group’s Firestore security rules. Original error: '+detail);
  }finally{await deleteApp(app).catch(()=>{});}
 }
 export async function completeFirebaseSetup(args:{projectId:string;groupName:string;region:string;token:string;notify:(message:string)=>void}):Promise<GroupConnection>{
  const {projectId,groupName,region,token,notify}=args;
  if(!/^vn-[a-z0-9-]{3,54}$/.test(projectId))throw Error('Please use the test project ID previously created by Volleyball Night.');
  await api(`https://cloudresourcemanager.googleapis.com/v3/projects/${projectId}`,token);
- await enableService(projectId,'firebase.googleapis.com',token,notify);
- await addFirebase(projectId,token,notify);
- await enableService(projectId,'firestore.googleapis.com',token,notify);
- // Google's projects.addFirebase enables the Firebase Rules API itself.
- // A redundant Service Usage GET against firebaserules.googleapis.com can
- // return a misleading 403 in newly provisioned projects, even though
- // addFirebase succeeded. Check the rules service by USING it instead.
- await makeFirestore(projectId,token,region,notify);
- await installRules(projectId,token,notify);
- const web=await findOrCreateWebApp(projectId,token,notify);
+ await whileGoogleActivates('Firebase API access',notify,
+  ()=>enableService(projectId,'firebase.googleapis.com',token,notify));
+ await whileGoogleActivates('Firebase activation',notify,
+  ()=>addFirebase(projectId,token,notify));
+ await whileGoogleActivates('Firestore API access',notify,
+  ()=>enableService(projectId,'firestore.googleapis.com',token,notify));
+ await whileGoogleActivates('Firestore database',notify,
+  ()=>makeFirestore(projectId,token,region,notify));
+ await whileGoogleActivates('Firestore access rules',notify,
+  ()=>installRules(projectId,token,notify));
+ const web=await whileGoogleActivates('web app registration',notify,
+  ()=>findOrCreateWebApp(projectId,token,notify));
  const group=validateGroup({version:1,name:groupName||projectId,config:web});
  await seedSession(group,notify);
  return group;

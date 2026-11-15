@@ -121,3 +121,27 @@ Google accounts for the final first-time onboarding test.
   https://firebase.google.com/docs/projects/api/workflow_set-up-and-manage-project
 - Firebase Terms:
   https://firebase.google.com/docs/projects/use-firebase-with-existing-cloud-project
+
+## Cloud propagation and automatic retries
+
+New Google Cloud projects, Service Usage APIs, Firebase Rules releases,
+and Firestore browser access don't always become available instantly.
+
+- During provisioning, transient Google API **403** replies are retried
+  for up to **two minutes per affected step**. Explicit terms-acceptance
+  or billing requirements are not silently retried.
+- The browser checks actual Firestore **server reads** and session
+  creation for up to **three minutes** after publishing rules. A visible
+  progress message explains that activation may take a few minutes.
+- A resumed setup first checks whether the exact intended rules are
+  **already published**. It does not publish new identical rulesets
+  unnecessarily, so retrying won't restart the rules rollout.
+- If the limit is reached, the group project ID remains saved.
+  The error suggests waiting another minute or two and choosing
+  **Continue setup with Google** on the same project. Persistent IAM
+  or rules errors still need troubleshooting; the app never assumes
+  every 403 is temporary.
+
+Firebase notes that new rules can take up to one minute to affect
+new client reads, and longer for active listeners:
+https://firebase.google.com/docs/firestore/security/get-started

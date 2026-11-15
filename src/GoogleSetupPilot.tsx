@@ -78,7 +78,10 @@ export function GoogleSetupPilot(){
   technicalRef.current=message;
   setTechnical(message);
   const s=message.toLowerCase();
-  if(s.includes('firestore')||s.includes('database')||s.includes('rules')||s.includes('web app')||s.includes('session')){
+  if(/still activating|still finishing|waiting for|checking automatically|may take a few minutes|retrying automatically/.test(s)){
+   setPhase(2);
+   setStatus('Google is finishing your cloud setup. This may take a few minutes. We’ll keep checking automatically.');
+  }else if(s.includes('firestore')||s.includes('database')||s.includes('rules')||s.includes('web app')||s.includes('session')){
    setPhase(2);
    setStatus('Preparing your group database and volleyball workspace…');
   }else if(s.includes('firebase')||s.includes('api')){
@@ -247,15 +250,17 @@ export function GoogleSetupPilot(){
        })}
       </div>
       {status&&<p className="vn-wizard-status">{status}</p>}
-     </div>}
+      {busy&&/still activating|still finishing|waiting for|checking automatically|may take a few minutes|retrying automatically/i.test(technical)&&
+       <p className="vn-wizard-substatus">{technical}</p>}
+     </div>
     {error&&<div className="vn-wizard-error" role="alert">
       <div><AlertCircle size={20}/><strong>{needTerms?'Google requires Firebase terms acceptance':firestoreClientIssue?'Firestore access is not ready':permissionIssue?'Google API access was denied':'We couldn’t finish that step'}</strong></div>
       <p>{needTerms?
        'Google specifically requested Firebase Terms acceptance. Open the official Firebase Console, accept its terms, then continue this saved setup.':
        firestoreClientIssue?
-       'Your Cloud project has been created, but the Volleyball Night browser cannot yet read or initialize its first Firestore session. This is a Firestore security-rules access issue, not automatically a problem with your Google account permissions. Your existing project is saved.':
+       'Google may still be applying the new Firestore access rules. We checked automatically for several minutes before stopping. Wait another minute or two, then select Continue setup with Google. Your project is saved and no duplicate will be created. If it keeps failing, check the Firestore rules.':
        permissionIssue?
-       'Google denied a project API request. Check that you authorized the Google account that owns this project and review that API or its permissions. Your existing project is saved, so retrying will not create another project.':
+       'Google may still be applying permissions or enabling an API for your new project. We retried automatically, but the request is still being denied. Wait another minute or two and continue this saved setup. If it repeatedly fails, verify that you are using the project owner’s Google account and check the API permissions.':
        'Your existing project has been remembered. You can continue with the same Google account without creating another project.'}</p>
       {needTerms&&<a className="btn secondary" href={FIREBASE_TERMS_URL} target="_blank" rel="noreferrer">
        Accept Firebase terms in Google Console <ExternalLink size={16}/>

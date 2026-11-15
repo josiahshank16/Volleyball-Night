@@ -251,3 +251,6 @@
 
 .vn-wizard-help-links{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0}
 .vn-wizard-help-links a{display:inline-flex;align-items:center;gap:7px;background:white;border:1px solid #dfc9bf;border-radius:8px;padding:9px 11px;font-size:12px;font-weight:700;color:#7e4d3e}
+
+/* Explain the expected cloud activation delay while checking automatically. */
+.vn-wizard-substatus{font-size:11px;line-height:1.55;color:#698a89;text-align:center;margin:7px 0 0;font-weight:500}
