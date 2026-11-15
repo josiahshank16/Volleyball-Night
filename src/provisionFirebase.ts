@@ -107,7 +107,7 @@ async function installRules(projectId:string,token:string,notify:(message:string
  notify('Publishing the Firestore rules in your new project…');
  try{
   await api(`${base}/${releaseName}`,token,'GET');
-  await api(`${base}/${releaseName}`,token,'PATCH',{release:{name:releaseName,rulesetName:ruleset.name}});
+  await api(`${base}/${releaseName}`,token,'PATCH',{release:{name:releaseName,rulesetName:ruleset.name},updateMask:'rulesetName'});
  }catch(e){
   if(statusOf(e)!==404)throw e;
   await api(`${base}/projects/${projectId}/releases`,token,'POST',{name:releaseName,rulesetName:ruleset.name});
