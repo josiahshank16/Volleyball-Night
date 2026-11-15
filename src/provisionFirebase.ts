@@ -287,6 +287,22 @@ export async function completeFirebaseSetup(args:{projectId:string;groupName:str
   if(status.fields?.protected?.booleanValue===true)
    throw Error('This group is already protected. Open it through Find my groups instead of resuming setup.');
  }catch(e){if(statusOf(e)!==404)throw e;}
+ // Migration publishes rules before writing access/status. A retry in that
+ // small window must not downgrade the protected rules either.
+ try{
+  const release=await api<{rulesetName?:string}>(
+   `https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`,token);
+  if(release.rulesetName){
+   const ruleset=await api<{source?:{files?:Array<{content?:string}>}}>(
+    'https://firebaserules.googleapis.com/v1/'+release.rulesetName,token);
+   if(ruleset.source?.files?.some(file=>{
+    const content=file.content||'';
+    return /match\s+\/access\s*\//.test(content)||
+      (content.includes('liveSessions')&&content.trim()!==RULES_SOURCE.trim());
+   }))
+    throw Error('This group has different or protected Firestore access rules. Setup cannot replace them. Open the existing group or inspect its rules in Firebase.');
+  }
+ }catch(e){if(statusOf(e)!==404&&!serviceNotActive(e))throw e;}
  await whileGoogleActivates('Firestore access rules',notify,
   ()=>installRules(projectId,token,notify));
  notify('Firestore rules were published.',{stage:'cloud',kind:'check'});
