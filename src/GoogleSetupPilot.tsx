@@ -5,7 +5,7 @@ import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
 import {installIndependentGroupWebsite} from './hostingInstaller';
 import {advanceSetupProgress,SETUP_PROGRESS_SLOTS,type SetupProgressEvent} from './setupProgress';
-import {activateGroup,encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
+import {validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
 const OAUTH_ID_KEY='volleyball-night-oauth-pilot-client-id';
@@ -46,17 +46,12 @@ function installedWebsiteFor(projectId:string):string{
   return url.protocol==='https:'&&url.hostname.endsWith('.web.app')?url.origin+'/':'';
  }catch{return ''}
 }
-function getShareLink(group:GroupConnection){
- const url=new URL(location.href);
- url.search='';url.hash='';url.searchParams.set('g',encodeGroup(group));
- return url.toString();
-}
 type ProgressStep=0|1|2|3;
-const progressLabels=['Google account','Group project','Database and workspace','Ready to play'];
+const progressLabels=['Google account','Group project','Database and website','Ready to play'];
 function progressOf(step:ProgressStep,active:ProgressStep){
  return step<active?'done':step===active?'active':'future';
 }
-/** The last segment never fills until we have verified a usable Firestore group. */
+/** The last segment never fills until the database and website are ready. */
 function SetupProgressMeter({completedSlots}:{completedSlots:number}){
  const slots=Math.max(0,Math.min(SETUP_PROGRESS_SLOTS,Math.floor(completedSlots)));
  return <div className="vn-wizard-meter-wrap">
@@ -68,7 +63,7 @@ function SetupProgressMeter({completedSlots}:{completedSlots:number}){
     style={{width:`${slots/SETUP_PROGRESS_SLOTS*100}%`}}/>
   </div>
   <div className="vn-wizard-meter-caption">
-   <span>Cloud workspace</span><span>Connecting database</span>
+   <span>Cloud workspace</span><span>Database and website</span>
   </div>
  </div>;
 }
@@ -84,11 +79,11 @@ export function GoogleSetupPilot(){
  const [showAdvanced,setShowAdvanced]=useState(false);
  const [manualId,setManualId]=useState('');
  const [busy,setBusy]=useState(false);
- const [progressSlots,setProgressSlots]=useState(()=>initialCheckpoint?.stage==='created'?4:0);
+ const [progressSlots,setProgressSlots]=useState(()=>initialCheckpoint&&installedWebsiteFor(initialCheckpoint.projectId)?SETUP_PROGRESS_SLOTS:completedFor(initialCheckpoint)?SETUP_PROGRESS_SLOTS-1:initialCheckpoint?.stage==='created'?4:0);
  const busyRef=useRef(false);
  const [authorizing,setAuthorizing]=useState(false);
  const authorizingRef=useRef(false);
- const [phase,setPhase]=useState<ProgressStep>(initialCheckpoint?.stage==='complete'?3:initialCheckpoint?.stage==='created'&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId?2:0);
+ const [phase,setPhase]=useState<ProgressStep>(initialCheckpoint&&installedWebsiteFor(initialCheckpoint.projectId)?3:completedFor(initialCheckpoint)?2:initialCheckpoint?.stage==='created'&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId?2:0);
  const [status,setStatus]=useState(initialCheckpoint?.stage==='complete'?'':initialCheckpoint&&localStorage.getItem(TERMS_PENDING_KEY)===initialCheckpoint.projectId?'One-time Google approval needed to finish setup.':initialCheckpoint?'Your earlier setup was saved. Continue with Google to finish it.':'');
  const [technical,setTechnical]=useState('');
  const technicalRef=useRef('');
@@ -101,6 +96,7 @@ export function GoogleSetupPilot(){
  const [installAuthorizing,setInstallAuthorizing]=useState(false);
  const [installStatus,setInstallStatus]=useState('');
  const [installError,setInstallError]=useState('');
+ const isComplete=!!ready&&!!installedUrl;
 
  function remember(next:SetupCheckpoint){
   checkpointRef.current=next;
@@ -131,35 +127,49 @@ export function GoogleSetupPilot(){
   // with exactly the same project ID instead of making an unwanted second project.
   remember(current);
   setBusy(true);busyRef.current=true;
-  setProgressSlots(current.stage==='created'?4:0);
-  setError('');setNeedTerms(false);setReady(null);setCopied(false);
+  const existing=completedFor(current);
+  setProgressSlots(existing?SETUP_PROGRESS_SLOTS-1:current.stage==='created'?4:0);
+  setError('');setInstallError('');setNeedTerms(false);setReady(existing);setCopied(false);
+  let databaseReady=!!existing;
   try{
    setPhase(1);
-   await ensureCloudProject(current,token,(message,event)=>{
-    if(event)setProgressSlots(previous=>advanceSetupProgress(previous,event));
-    technicalRef.current=message;
-    setTechnical(message);
-    setStatus('Creating your group-owned cloud project…');
-   });
+   if(!existing)await ensureCloudProject(current,token,(message,event)=>{
+     if(event)setProgressSlots(previous=>advanceSetupProgress(previous,event));
+     technicalRef.current=message;
+     setTechnical(message);
+     setStatus('Creating your group-owned cloud project…');
+    });
    const created={...current,stage:'created' as const,updatedAt:Date.now()};
    remember(created);
-   setPhase(2);setStatus('Preparing Firebase and your player database…');
-   const group=await completeFirebaseSetup({
+   setPhase(2);setStatus(existing?'Publishing your group website…':'Preparing Firebase and your player database…');
+   const group=existing||await completeFirebaseSetup({
     projectId:created.projectId,groupName:created.groupName,
     region:created.region,token,notify:progress
    });
+   // Save the verified database before Hosting. An interrupted installation
+   // resumes this same project without recreating the database or web app.
+   localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:created.projectId,group}));
+   databaseReady=true;
+   setReady(group);setProgressSlots(SETUP_PROGRESS_SLOTS-1);
+   setStatus('Publishing your independent website…');
+   setInstalling(true);
+   const siteUrl=await installIndependentGroupWebsite({group,token,notify:message=>{
+    setInstallStatus(message);setStatus(message);
+   }});
+   localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:created.projectId,group,siteUrl}));
    const done={...created,stage:'complete' as const,updatedAt:Date.now()};
-   localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:done.projectId,group}));
    if(localStorage.getItem(TERMS_PENDING_KEY)===done.projectId)localStorage.removeItem(TERMS_PENDING_KEY);
    remember(done);
+   setInstalledUrl(siteUrl);
    setProgressSlots(SETUP_PROGRESS_SLOTS);
    setReady(group);setPhase(3);setStatus('Your group is ready!');setTechnical('');
   }catch(err){
    const message=(err as Error)?.message||String(err);
-   setError(message);
+   if(databaseReady){setInstallError(message);setError('')}
+   else setError(message);
    // Show the friendly approval step ONLY for an explicit Terms response.
    // A generic Google 403 is not evidence of missing Firebase Terms.
-   const requiresTerms=/terms of service|firebase terms|accept.*terms|\btos\b|TOS_NOT_ACCEPTED/i.test(message);
+   const requiresTerms=!databaseReady&&/terms of service|firebase terms|accept.*terms|\btos\b|TOS_NOT_ACCEPTED/i.test(message);
    setNeedTerms(requiresTerms);
    if(requiresTerms){
     localStorage.setItem(TERMS_PENDING_KEY,current.projectId);
@@ -167,9 +177,9 @@ export function GoogleSetupPilot(){
     setStatus('One-time Google approval needed to finish setup.');
    }else{
     if(localStorage.getItem(TERMS_PENDING_KEY)===current.projectId)localStorage.removeItem(TERMS_PENDING_KEY);
-    setStatus('Setup paused. Your progress is saved; continuing will reuse the same project.');
+    setStatus(databaseReady?'Your database is ready. Website installation can be retried here.':'Setup paused. Your progress is saved; continuing will reuse the same project.');
    }
-  }finally{busyRef.current=false;setBusy(false);}
+  }finally{busyRef.current=false;setBusy(false);setInstalling(false);}
  }
  function installWebsite(){
   if(!ready||installing||installAuthorizing||busyRef.current||authorizingRef.current)return;
@@ -195,7 +205,11 @@ export function GoogleSetupPilot(){
       try{
        const url=await installIndependentGroupWebsite({group,token,notify:setInstallStatus});
        localStorage.setItem(COMPLETED_KEY,JSON.stringify({projectId:group.config.projectId,group,siteUrl:url}));
+       if(checkpointRef.current?.projectId===group.config.projectId){
+        remember({...checkpointRef.current,stage:'complete',updatedAt:Date.now()});
+       }
        setInstalledUrl(url);setInstallStatus('Independent website published. Open the site to verify it.');
+       setProgressSlots(SETUP_PROGRESS_SLOTS);setPhase(3);setError('');
        setCopied(false);
       }catch(err){
        setInstallError((err as Error)?.message||String(err));
@@ -262,7 +276,7 @@ export function GoogleSetupPilot(){
   }
  }
  function startNew(){
-  if(busyRef.current||authorizingRef.current)return;
+  if(busyRef.current||authorizingRef.current||installing||installAuthorizing)return;
   if(checkpointRef.current&&!window.confirm(
    'Start setting up a DIFFERENT group? This will clear only the saved setup progress in this browser. Any Google Cloud project already created will remain in your Google account.'))return;
   clearCheckpoint();localStorage.removeItem(COMPLETED_KEY);localStorage.removeItem(TERMS_PENDING_KEY);
@@ -282,14 +296,15 @@ export function GoogleSetupPilot(){
   setNeedTerms(false);setReady(null);setError('');setProgressSlots(4);setStatus('Project saved. Continue with Google to finish this group.');
   setShowAdvanced(false);
  }
- const groupLink=ready?(installedUrl||getShareLink(ready)):'';
+ const groupLink=installedUrl;
  const firestoreClientIssue=!needTerms&&(
   /Firestore client|Missing or insufficient permissions|permission-denied|liveSessions\/current/i.test(error)||
   /Waiting for Firestore rules to become active|Waiting for Firestore client access rules|Verifying Firestore access/i.test(technical)
  );
  const permissionIssue=!needTerms&&!firestoreClientIssue&&/permission|403|access denied/i.test(error);
  const rulesStep=/rules|firebaserules/i.test(technical)||/Firebase Rules/i.test(error);
- const subtitle=ready?'Everything is connected. Your players and games are stored in your group’s own Firebase project.':
+ const subtitle=isComplete?'Your group has its own website and database. Share its address to start playing.':
+  ready?'Your database is ready. Finish publishing your group’s website to get its permanent link.':
   needTerms?'Your group is almost ready. Google has one quick, first-time approval before we can finish.':
   checkpoint?'Your group setup is saved and will continue without creating another project.':
   'Create a separate cloud workspace for your volleyball group. No GitHub account or manual Firebase configuration needed.';
@@ -297,7 +312,7 @@ export function GoogleSetupPilot(){
   <header className="group-setup-bar"><div className="vn-home-logo"><Volleyball size={24}/><span>VOLLEYBALL <b>NIGHT</b></span></div><ModeSwitch/></header>
   <main className="group-setup-main vn-wizard-main">
    <div className="group-setup-heading"><span className="eyebrow">SET UP YOUR GROUP</span>
-    <h1>{ready?'Your group is ready!':checkpoint?'Finish your group setup':'Welcome to Volleyball Night'}</h1>
+    <h1>{isComplete?'Your group is ready!':checkpoint?'Finish your group setup':'Welcome to Volleyball Night'}</h1>
     <p>{subtitle}</p>
     <a className="vn-my-groups-create" href="/?mode=groups"><FolderOpen size={16}/> Already have a group? Find my groups</a>
    </div>
@@ -395,27 +410,27 @@ export function GoogleSetupPilot(){
       <details><summary>Technical error details</summary><pre>{error}</pre>{technical&&<p>Last operation: {technical}</p>}</details>
     </div>}
     {ready&&<div className="vn-wizard-success">
-      <CheckCircle2 size={48}/>
-      <SetupProgressMeter completedSlots={SETUP_PROGRESS_SLOTS}/>
+      {isComplete?<CheckCircle2 size={48}/>:<Globe2 size={48}/>}
+      <SetupProgressMeter completedSlots={progressSlots}/>
       <h2>{ready.name}</h2>
-      <p>Google Firebase is connected. Your group can start using check-in, teams, scorekeeping, and TV mode.</p>
+      <p>{isComplete?'Your independent group website is ready for check-in, teams, scorekeeping, and TV mode.':'Your player database is connected. We’re preparing the independent website in the same Firebase project.'}</p>
       <section className="vn-install-panel">
        <div className="vn-install-head"><Globe2 size={21}/>
-        <div><strong>{installedUrl?'Your independent website is published':'Install an independent website'}</strong>
-         <p>{installedUrl?'This group has its own Firebase Hosting site. Its pages and data no longer depend on the Volleyball Night hub.':'Give this group its own website, hosted inside its own Firebase project. This is an experimental installer; your existing group link will keep working if installation fails.'}</p>
-         <p><strong>Important:</strong> When Google asks you to sign in, select the Google account that originally created this group.</p>
+        <div><strong>{isComplete?'Your independent website is published':installing?'Publishing your website…':'Finish website installation'}</strong>
+         <p>{isComplete?'This group’s pages and data live in its own Firebase project. Future hub updates do not change this installed copy.':'Installation can be retried without creating another group or database.'}</p>
+         {!isComplete&&!installing&&<p><strong>When Google asks:</strong> Select the account that created this group.</p>}
         </div>
        </div>
-       <button type="button" className="btn secondary vn-install-action" disabled={installing||installAuthorizing}
+       <button type="button" className="btn secondary vn-install-action" disabled={busy||installing||installAuthorizing}
         onClick={installWebsite}>
         {installing||installAuthorizing?<Loader2 size={17} className="vn-wizard-spinner"/>:<Globe2 size={17}/>}
-        {installing?'Installing website…':installAuthorizing?'Waiting for Google…':installedUrl?'Reinstall current version':'Install website to this group'}
+        {installing?'Publishing website…':installAuthorizing?'Waiting for Google…':isComplete?'Update this group’s website':'Retry website installation'}
        </button>
        {installStatus&&<p className="vn-install-feedback" role="status">{installStatus}</p>}
        {installError&&<div className="vn-install-failure" role="alert">
         <strong>Website installation hasn't finished.</strong>
         <p>{installError}</p>
-        <small>The original group website still works. Make sure you select the project owner's Google account.</small>
+        <small>Your database is saved. Make sure you select the project owner's Google account, then retry this installation.</small>
         <a href={`https://console.firebase.google.com/project/${ready.config.projectId}/overview`} target="_blank" rel="noopener noreferrer">Check this group’s Google account <ExternalLink size={14}/></a>
         <a href={`https://console.cloud.google.com/apis/library/firebasehosting.googleapis.com?project=${ready.config.projectId}`} target="_blank" rel="noopener noreferrer">Check its Firebase Hosting API <ExternalLink size={14}/></a>
        </div>}
@@ -423,7 +438,7 @@ export function GoogleSetupPilot(){
         Open independent group website <ExternalLink size={15}/>
        </a>}
       </section>
-      <button type="button" className="btn primary" onClick={()=>installedUrl?window.location.assign(installedUrl):activateGroup(ready)}>
+      {isComplete&&<><button type="button" className="btn primary" onClick={()=>window.location.assign(installedUrl)}>
        Open my Volleyball Night <ArrowRight size={17}/>
       </button>
       <label htmlFor="wizard-share">Share with volunteers</label>
@@ -434,9 +449,9 @@ export function GoogleSetupPilot(){
         catch{window.prompt('Copy the group link:',groupLink)}
        }}><Copy size={16}/>{copied?'Copied':'Copy link'}</button>
       </div>
-      <p className="group-setup-muted">{installedUrl?'Share your group’s own website. Volunteers no longer need to visit the central Volleyball Night site.':'Volunteers use this link to connect to your group’s database. They do not need a Google account.'}</p>
+      <p className="group-setup-muted">Share your group’s own website. Volunteers do not need a Google account to check in.</p></>}
      </div>}
-    {checkpoint&&<button type="button" className="vn-wizard-reset" disabled={busy} onClick={startNew}>
+    {checkpoint&&<button type="button" className="vn-wizard-reset" disabled={busy||installing||installAuthorizing} onClick={startNew}>
      <RotateCcw size={16}/> Set up a different group
     </button>}
    </section>

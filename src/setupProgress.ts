@@ -6,7 +6,7 @@
  * A 25th, final slot is intentionally reserved for verified success only.
  * These are experience-based estimates, NOT an elapsed-time percentage.
  * Never report 100% here: the wizard switches to "ready" only after the
- * Firestore session has actually been initialized and read back.
+ * Firestore session and the independent website have both been verified.
  */
 export const CLOUD_CHECK_SLOTS=10;
 export const FIRESTORE_CHECK_SLOTS=14;

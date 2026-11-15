@@ -37,13 +37,15 @@ See [DEPENDENCY-AUDIT.md](DEPENDENCY-AUDIT.md) for the current npm audit finding
 
 ## Connect independent Firebase groups
 
-Groups can use **Create a group with Google** from the home screen or visit `/?mode=setup`. After one Google authorization, Volleyball Night automatically requests a separate Google Cloud project, activates Firebase, creates Firestore, publishes its prototype rules, and initializes the first session. Interrupted setup saves the project ID locally for safe retry.
+Groups can use **Create a group with Google** from the home screen or visit `/?mode=setup`. After one Google authorization, Volleyball Night requests a separate Google Cloud project, activates Firebase, creates Firestore, publishes its prototype rules, initializes the first session, and installs the app into that group's Firebase Hosting. The wizard reaches 100% and shares the group's own URL only after the Hosting release succeeds. Interrupted setup saves the project ID and verified database connection locally for safe retry. If Hosting fails, the same group can retry installation without creating another project.
+
+**Find my groups** checks each accessible group's default Hosting site and live release. It opens the independent URL when published and retains the original central-site link for groups that have not migrated. Updates to the central app do not automatically update installed group sites; group owners can reinstall the current version from their setup page. The original site and legacy group links remain available during migration.
 
 The manual **Bring your own Firebase** wizard remains at `/?mode=manual-setup` for advanced use. See [GOOGLE-OAUTH-EXPERIMENT.md](GOOGLE-OAUTH-EXPERIMENT.md) for guided setup and testing.
 
 
 ## One-step Google setup (preview)
 
-The group onboarding screen now asks for a **group name**, a **project authorization acknowledgment**, and **Continue with Google**. The app runs project creation and Firebase provisioning as one continuous flow, preserving the project ID before making network requests. If a new Google account must accept official Firebase terms, the wizard opens the official Google terms page and resumes afterward. Google access tokens are kept in memory only.
+The group onboarding screen asks for a **group name**, a **project authorization acknowledgment**, and **Continue with Google**. The app creates the project, provisions Firebase, and publishes the group website in one continuous flow, preserving the project ID before making network requests. If a new Google account must accept official Firebase terms, the wizard opens the official Google terms page and resumes afterward. Google access tokens are kept in memory only.
 
 Our Google OAuth client must be configured once by the application developer. Project creation and Firebase provisioning are tested, but this streamlined UX hasn't yet been validated with a brand-new Google account.

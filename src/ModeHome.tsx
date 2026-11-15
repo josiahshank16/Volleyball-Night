@@ -4,6 +4,9 @@ import {activeGroup,encodeGroup,isIndependentGroupSite} from './groupConnection'
 import {connectedGroupName,firebaseConfig} from './firebase';
 export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'setup'|'manual-setup'|'groups';
 export const modeHref=(mode:AppMode)=>{
+ if(isIndependentGroupSite&&['setup','manual-setup','groups'].includes(mode))
+  return 'https://volleyball-night.web.app/?mode='+mode;
+ if(['setup','manual-setup','groups'].includes(mode))return '/?mode='+mode;
  const u=new URL(window.location.href);u.search='';u.hash='';
  if(activeGroup&&!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(activeGroup));
  if(mode!=='home')u.searchParams.set('mode',mode);
@@ -34,8 +37,8 @@ export function ModeHome(){
     <span className="vn-mode-card-icon"><Icon size={28}/></span><strong>{title}</strong><p>{desc}</p><span className="vn-mode-arrow"><ArrowRight size={20}/></span>
    </a>)}</div>
   <div className="vn-home-group-actions">
-   <a href={isIndependentGroupSite?'https://volleyball-night.web.app/?mode=groups':modeHref('groups')}><FolderOpen size={17}/> Find my groups</a>
-   <a href={isIndependentGroupSite?'https://volleyball-night.web.app/?mode=setup':modeHref('setup')}><Database size={17}/> Create a group with Google</a>
+   <a href={modeHref('groups')}><FolderOpen size={17}/> Find my groups</a>
+   <a href={modeHref('setup')}><Database size={17}/> Create a group with Google</a>
    {activeGroup&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(groupUrl());setCopied(true)}catch{window.prompt('Copy the group link:',groupUrl())}}}><Copy size={17}/>{copied?'Link copied':'Copy group link'}</button>}
   </div>
   <p className="vn-home-note">Open design preview: no sign-in or PIN required yet. Each group connects to its own live Firebase database.</p>
