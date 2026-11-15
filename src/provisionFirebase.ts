@@ -208,16 +208,16 @@ async function seedSession(group:GroupConnection,notify:(message:string)=>void){
     const error=err as {code?:string;message?:string};
     const retryable=error.code==='permission-denied'||error.code==='unavailable';
     if(!retryable){
-     throw new Error(\`Firestore \${failedAt==='read'?'read':'session creation'} failed in \${group.config.projectId}: \${error.message??String(err)}\`);
+     throw new Error(`Firestore ${failedAt==='read'?'read':'session creation'} failed in ${group.config.projectId}: ${error.message??String(err)}`);
     }
     lastPermissionError=err;
     if(attempt===attempts-1)break;
-    notify(\`Waiting for Firestore client access rules to activate… (\${attempt+1}/\${attempts})\`);
+    notify(`Waiting for Firestore client access rules to activate… (${attempt+1}/${attempts})`);
     await pause(4000);
    }
   }
   const detail=(lastPermissionError as {message?:string})?.message??'Access denied';
-  throw new Error(\`Firestore client \${failedAt==='read'?'READ':'CREATE'} permission was denied for liveSessions/current in \${group.config.projectId}, even after waiting for the new rules. The group's Cloud project and published rules were preserved. Open the Firebase Console → Firestore Database → Rules for THIS project and confirm that the rules allow get and create on liveSessions/current. Then continue setup using the same project. Original error: \${detail}\`);
+  throw new Error(`Firestore client ${failedAt==='read'?'READ':'CREATE'} permission was denied for liveSessions/current in ${group.config.projectId}, even after waiting for the new rules. The group's Cloud project and published rules were preserved. Open the Firebase Console → Firestore Database → Rules for THIS project and confirm that the rules allow get and create on liveSessions/current. Then continue setup using the same project. Original error: ${detail}`);
  }finally{await deleteApp(app).catch(()=>{});}
 }
 export async function completeFirebaseSetup(args:{projectId:string;groupName:string;region:string;token:string;notify:(message:string)=>void}):Promise<GroupConnection>{
