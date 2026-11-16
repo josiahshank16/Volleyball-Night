@@ -2,11 +2,13 @@
 
 Indoor 6v6 volleyball check-in, team building, scheduling, live scoreboard, and TV display. Built with React + TypeScript + Vite + Cloud Firestore.
 
-## Open the app
+## Open the hub and group apps
 
-The app has four modes available at a single URL: check-in kiosk, TV display, scorekeeper, and organizer. The site defaults to the mode-selection home screen. All modes synchronize against the current Firestore session.
+The central `volleyball-night.web.app` site is the launchpad for creating and finding independent groups. Each group's own `.web.app` site has four modes: check-in kiosk, TV display, scorekeeper, and organizer. Those modes synchronize against that group's own Firestore session. Old central group links show a handoff to the independent site.
 
-**This is an open design prototype:** Anyone with the app URL can read and edit shared volleyball night data. There is no sign-in or leader PIN yet.
+An open group's six-digit PIN prompts on Organizer, Scorekeeper, and Switch mode buttons. Direct mode URLs and the group database remain open; the PIN is a convenience prompt, not data protection. Check-in and TV remain open. Already protected groups retain their existing Firebase Authentication path.
+
+The hub owner area verifies a Google account through Google's userinfo API and compares its verified email with `VITE_HUB_OWNER_EMAIL`. Configure this exact email in the GitHub Actions repository variable before enabling the owner area. It contains a read-only summary and backup download for the original project; the original project no longer runs gameplay on the central site. This is a client-side hub gate: it does not secure an open Firestore database. The public Create and Find flows remain available to group owners using their own Google accounts.
 
 ## Run in GitHub Codespaces
 
@@ -25,7 +27,7 @@ See [HOSTING-SETUP.md](HOSTING-SETUP.md) for the browser-only deployment instruc
 npm run build
 ```
 
-The site is an early prototype. Team balance is heuristic and the organizer tools are currently not access-controlled.
+Team balance is heuristic. The PIN prompts are not access control for the group database.
 
 ## Edit teams by dragging
 
@@ -37,9 +39,9 @@ See [DEPENDENCY-AUDIT.md](DEPENDENCY-AUDIT.md) for the current npm audit finding
 
 ## Connect independent Firebase groups
 
-Groups can use **Create a group with Google** from the home screen or visit `/?mode=setup`. After one Google authorization, Volleyball Night requests a separate Google Cloud project, activates Firebase, creates Firestore, publishes its prototype rules, initializes the first session, and installs the app into that group's Firebase Hosting. The wizard reaches 100% and shares the group's own URL only after the Hosting release succeeds. Interrupted setup saves the project ID and verified database connection locally for safe retry. If Hosting fails, the same group can retry installation without creating another project.
+Groups can use **Create a group** from the hub or visit `/?mode=setup`. After one Google authorization, Volleyball Night requests a separate Google Cloud project, activates Firebase, creates Firestore, publishes its open group rules, initializes the first session, and installs the app into that group's Firebase Hosting. The wizard reaches 100% and shares the group's own URL only after the Hosting release succeeds. It then links directly to that site to set the group PIN. Interrupted setup saves the project ID and verified database connection locally for safe retry. If Hosting fails, the same group can retry installation without creating another project.
 
-**Find my groups** checks each accessible group's default Hosting site and live release. It opens the independent URL when published and retains the original central-site link for groups that have not migrated. Updates to the central app do not automatically update installed group sites; group owners can reinstall the current version from their setup page. The original site and legacy group links remain available during migration.
+**Find my groups** checks each accessible group's default Hosting site and live release. It opens the independent URL when published. Updates to the central app do not automatically update installed group sites; group owners can publish the current version from Find my groups. Legacy central group links show a handoff page instead of running gameplay on the hub.
 
 The manual **Bring your own Firebase** wizard remains at `/?mode=manual-setup` for advanced use. See [GOOGLE-OAUTH-EXPERIMENT.md](GOOGLE-OAUTH-EXPERIMENT.md) for guided setup and testing.
 
