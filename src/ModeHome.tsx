@@ -3,14 +3,14 @@ import {ClipboardCheck,Monitor,Trophy,Settings,ArrowRight,House,Volleyball,Datab
 import {activeGroup,encodeGroup,isIndependentGroupSite} from './groupConnection';
 import {connectedGroupName,firebaseConfig} from './firebase';
 import {askForUiPin} from './uiPin';
-export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'pin-settings'|'change-pin'|'owner-settings'|'setup'|'manual-setup'|'groups';
+export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'pin-settings'|'change-pin'|'owner-settings'|'setup'|'manual-setup'|'groups'|'guide'|'admin';
 export const modeHref=(mode:AppMode)=>{
  if(!isIndependentGroupSite&&mode==='home')return '/';
  if(isIndependentGroupSite&&mode==='owner-settings'&&activeGroup)
   return 'https://volleyball-night.web.app/?g='+encodeGroup(activeGroup)+'&mode=owner-settings';
- if(isIndependentGroupSite&&['setup','manual-setup','groups'].includes(mode))
+ if(isIndependentGroupSite&&['setup','manual-setup','groups','guide','admin'].includes(mode))
   return 'https://volleyball-night.web.app/?mode='+mode;
- if(['setup','manual-setup','groups'].includes(mode))return '/?mode='+mode;
+ if(['setup','manual-setup','groups','guide','admin'].includes(mode))return '/?mode='+mode;
  const u=new URL(window.location.href);u.search='';u.hash='';
  if(activeGroup&&!isIndependentGroupSite)u.searchParams.set('g',encodeGroup(activeGroup));
  if(mode!=='home')u.searchParams.set('mode',mode);

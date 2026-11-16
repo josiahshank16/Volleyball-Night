@@ -19,7 +19,8 @@ import {OwnerAccess} from './OwnerAccess';
 import {ChangePin} from './ChangePin';
 import {UiPinSettings} from './UiPinSettings';
 import {askForUiPin} from './uiPin';
-import {MainLaunchpad,GroupSiteHandoff} from './MainLaunchpad';
+import {MainLaunchpad,AdminSettings,GroupSiteHandoff} from './MainLaunchpad';
+import {HowItWorks} from './HowItWorks';
 import {toPublicTV,type PublicTVData} from './publicViews';
 import {DndContext,PointerSensor,KeyboardSensor,pointerWithin,rectIntersection,useSensor,useSensors,type DragEndEvent} from '@dnd-kit/core';
 import {DragPlayer,DropTeam} from './DragTeams';
@@ -309,16 +310,18 @@ function InvalidGroupLink(){
 }
 const params=new URLSearchParams(location.search);
 const setupMode=params.get('mode');
-if(isIndependentGroupSite&&['setup','groups','manual-setup','owner-settings'].includes(setupMode??''))
- location.replace(modeHref(setupMode as 'setup'|'groups'|'manual-setup'|'owner-settings'));
+if(isIndependentGroupSite&&['setup','groups','manual-setup','owner-settings','guide','admin'].includes(setupMode??''))
+ location.replace(modeHref(setupMode as 'setup'|'groups'|'manual-setup'|'owner-settings'|'guide'|'admin'));
 else
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{
  groupLinkError&&!['setup','manual-setup'].includes(params.get('mode')??'')?<InvalidGroupLink/>:
  params.get('mode')==='setup'?<GoogleSetupPilot/>:
  params.get('mode')==='groups'?<MyGroups/>:
  params.get('mode')==='manual-setup'?<GroupSetup/>:
+ params.get('mode')==='guide'?<HowItWorks/>:
+ params.get('mode')==='admin'?<AdminSettings ownerTools={<HubLegacyData/>}/>:
  isIndependentGroupSite?<GroupAppRoutes/>:
  params.has('g')&&activeGroup&&params.get('mode')==='owner-settings'?<GroupAppRoutes/>:
  params.has('g')&&activeGroup?<GroupSiteHandoff projectId={activeGroup.config.projectId} mode={params.get('mode')}/>:
- <MainLaunchpad ownerTools={<HubLegacyData/>}/>
+ <MainLaunchpad/>
 }</React.StrictMode>);

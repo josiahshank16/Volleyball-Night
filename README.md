@@ -4,11 +4,11 @@ Indoor 6v6 volleyball check-in, team building, scheduling, live scoreboard, and 
 
 ## Open the hub and group apps
 
-The central `volleyball-night.web.app` site is the launchpad for creating and finding independent groups. Each group's own `.web.app` site has four modes: check-in kiosk, TV display, scorekeeper, and organizer. Those modes synchronize against that group's own Firestore session. Old central group links show a handoff to the independent site.
+The central `volleyball-night.web.app` site has one Create action and one Find action. Its How it works guide illustrates the complete group workflow; Admin settings is a separate page. Each group's own `.web.app` site has four modes: check-in kiosk, TV display, scorekeeper, and organizer. Those modes synchronize against that group's own Firestore session. Old central group links show a handoff to the independent site.
 
 An open group's six-digit PIN prompts on Organizer, Scorekeeper, and Switch mode buttons. Direct mode URLs and the group database remain open; the PIN is a convenience prompt, not data protection. Check-in and TV remain open. Already protected groups retain their existing Firebase Authentication path.
 
-The hub owner area verifies a Google account through Google's userinfo API and compares a SHA-256 fingerprint of its verified email with `VITE_HUB_OWNER_EMAIL_SHA256`. The deployment workflow sets that fingerprint for the designated host account. It contains a read-only summary and backup download for the original project; the original project no longer runs gameplay on the central site. This is a client-side hub gate: it does not secure an open Firestore database. The public Create and Find flows remain available to group owners using their own Google accounts.
+The separate Admin settings page verifies a Google account through Google's userinfo API and compares a SHA-256 fingerprint of its verified email with `VITE_HUB_OWNER_EMAIL_SHA256`. The deployment workflow sets that fingerprint for the designated host account. It currently contains a read-only summary and backup download for the original project; the original project no longer runs gameplay on the central site. This is a client-side hub gate: it does not secure an open Firestore database. The public Create and Find flows remain available to group owners using their own Google accounts.
 
 ## Run in GitHub Codespaces
 
