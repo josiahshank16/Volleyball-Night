@@ -11,7 +11,9 @@ export async function ownerApi<T>(url:string,token:string,method='GET',body?:unk
  try{value=JSON.parse(raw||'{}')}catch{value={message:raw.slice(0,300)}}
  if(!response.ok){
   const detail=value as {error?:{message?:string};message?:string};
-  const error=new Error('Google API '+response.status+': '+(detail.error?.message||detail.message||response.statusText)) as GoogleError;
+  const endpoint=new URL(url);
+  const error=new Error('Google API '+response.status+' at '+method+' '+endpoint.hostname+endpoint.pathname+': '+
+   (detail.error?.message||detail.message||response.statusText)) as GoogleError;
   error.status=response.status;
   throw error;
  }
@@ -64,8 +66,28 @@ export async function enableLeaderAuthentication(projectId:string,token:string){
   if(!active)throw Error('Google is still activating Authentication. Retry this group shortly.');
  }
  const base='https://identitytoolkit.googleapis.com/admin/v2/projects/'+encodeURIComponent(projectId)+'/config';
- await ownerApi(base+'?updateMask=signIn.email.enabled,signIn.email.passwordRequired',token,'PATCH',
-  {signIn:{email:{enabled:true,passwordRequired:true}}});
+ // Enabling the API does not create the project's Authentication config.
+ // Fresh Firebase projects return CONFIGURATION_NOT_FOUND until initialized.
+ try{await ownerApi(base,token)}
+ catch(e){
+  const missing=(e as GoogleError).status===404||/CONFIGURATION_NOT_FOUND/.test((e as Error).message);
+  if(!missing)throw e;
+  try{
+   await ownerApi('https://identitytoolkit.googleapis.com/v2/projects/'+
+    encodeURIComponent(projectId)+'/identityPlatform:initializeAuth',token,'POST',{});
+  }catch(initError){if((initError as GoogleError).status!==409)throw initError;}
+ }
+ for(let attempt=0;attempt<12;attempt++){
+  try{
+   await ownerApi(base+'?updateMask=signIn.email.enabled,signIn.email.passwordRequired',token,'PATCH',
+    {signIn:{email:{enabled:true,passwordRequired:true}}});
+   return;
+  }catch(e){
+   const preparing=(e as GoogleError).status===404||/CONFIGURATION_NOT_FOUND/.test((e as Error).message);
+   if(!preparing||attempt===11)throw e;
+   await new Promise(resolve=>setTimeout(resolve,1500));
+  }
+ }
 }
 
 /** Creates or rotates the one shared PIN account; only called after owner OAuth. */
