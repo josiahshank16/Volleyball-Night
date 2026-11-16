@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {ClipboardCheck,Monitor,Trophy,Settings,ArrowRight,House,Volleyball,Database,Copy,FolderOpen} from 'lucide-react';
 import {activeGroup,encodeGroup,isIndependentGroupSite} from './groupConnection';
 import {connectedGroupName,firebaseConfig} from './firebase';
-export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'owner-settings'|'setup'|'manual-setup'|'groups';
+export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'change-pin'|'owner-settings'|'setup'|'manual-setup'|'groups';
 export const modeHref=(mode:AppMode)=>{
  if(isIndependentGroupSite&&mode==='owner-settings'&&activeGroup)
   return 'https://volleyball-night.web.app/?g='+encodeGroup(activeGroup)+'&mode=owner-settings';
@@ -39,7 +39,8 @@ export function ModeHome({protectedMode=false}:{protectedMode?:boolean}){
     <span className="vn-mode-card-icon"><Icon size={28}/></span><strong>{title}</strong><p>{desc}</p><span className="vn-mode-arrow"><ArrowRight size={20}/></span>
    </a>)}</div>
   <div className="vn-home-group-actions">
-   {activeGroup&&<a href={modeHref('owner-settings')}><Settings size={17}/> Owner access & PIN</a>}
+   {activeGroup&&protectedMode&&<a href={modeHref('change-pin')}><Settings size={17}/> Change leader PIN</a>}
+   {activeGroup&&<a href={modeHref('owner-settings')}><Settings size={17}/>{protectedMode?'Google owner recovery':'Owner access & PIN'}</a>}
    <a href={modeHref('groups')}><FolderOpen size={17}/> Find my groups</a>
    <a href={modeHref('setup')}><Database size={17}/> Create a group with Google</a>
    {activeGroup&&<button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(groupUrl());setCopied(true)}catch{window.prompt('Copy the group link:',groupUrl())}}}><Copy size={17}/>{copied?'Link copied':'Copy group link'}</button>}
