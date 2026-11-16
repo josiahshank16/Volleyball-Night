@@ -24,7 +24,9 @@ jobs:
       - name: Build website
         env:
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.VITE_GOOGLE_OAUTH_CLIENT_ID }}
-          VITE_HUB_OWNER_EMAIL: ${{ vars.VITE_HUB_OWNER_EMAIL }}
+          # SHA-256 of the designated, lowercase Google email. The source and
+          # client bundle need no plain-text owner address.
+          VITE_HUB_OWNER_EMAIL_SHA256: 58e71d34c077532604e75382686789ecaaf82add448835f480796997b3c7fe39
         run: npm run build
       - name: Verify Firebase deployment credential exists
         env:

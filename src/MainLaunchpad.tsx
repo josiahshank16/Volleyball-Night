@@ -3,18 +3,24 @@ import {ArrowRight,Check,ExternalLink,FolderOpen,Globe2,LockKeyhole,LogOut,Shiel
 import {googleAccount} from './accessAdmin';
 
 const CLIENT_ID=import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string|undefined;
-const OWNER_EMAIL=(import.meta.env.VITE_HUB_OWNER_EMAIL as string|undefined)?.trim().toLowerCase();
+const OWNER_FINGERPRINT=(import.meta.env.VITE_HUB_OWNER_EMAIL_SHA256 as string|undefined)?.trim().toLowerCase();
+
+async function emailFingerprint(email:string){
+ const bytes=new TextEncoder().encode(email.trim().toLowerCase());
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+}
 
 function googleLogin(onSuccess:(email:string)=>void,onError:(message:string)=>void){
- if(!OWNER_EMAIL){onError('Owner access has not been configured yet. The hub owner must add their Google account to the site settings.');return}
+ if(!OWNER_FINGERPRINT){onError('Owner access has not been configured yet.');return}
  if(!CLIENT_ID||!window.google?.accounts?.oauth2){onError('Google sign-in is unavailable. Refresh this page and try again.');return}
  try{
   const client=window.google.accounts.oauth2.initTokenClient({
    client_id:CLIENT_ID,scope:'openid email profile',
    callback:result=>{
     if(!result.access_token||result.error){onError(result.error_description||result.error||'Google sign-in was cancelled.');return}
-    void googleAccount(result.access_token).then(account=>{
-     if(account.email.toLowerCase()!==OWNER_EMAIL){onError('This Google account is not the hub owner account. Choose the designated account.');return}
+    void googleAccount(result.access_token).then(async account=>{
+     if(await emailFingerprint(account.email)!==OWNER_FINGERPRINT){onError('This Google account is not the hub owner account. Choose the designated account.');return}
      onSuccess(account.email);
     }).catch(error=>onError((error as Error).message));
    },
@@ -41,9 +47,9 @@ function OwnerArea({ownerTools}:{ownerTools:ReactNode}){
      <button type="button" onClick={()=>setEmail('')}><LogOut size={16}/> Sign out here</button></div>
     {ownerTools}</>
     :<><p>Sign in with the designated Google account to open the hub owner's tools.</p>
-     <button className="hub-owner-button" disabled={busy||!OWNER_EMAIL} onClick={login} type="button"><ShieldCheck size={19}/>{busy?'Checking Google account…':'Continue with Google'}</button></>}
+     <button className="hub-owner-button" disabled={busy||!OWNER_FINGERPRINT} onClick={login} type="button"><ShieldCheck size={19}/>{busy?'Checking Google account…':'Continue with Google'}</button></>}
    {error&&<p className="hub-owner-error" role="alert">{error}</p>}
-   {!OWNER_EMAIL&&<p className="hub-owner-error" role="status">Owner sign-in is awaiting account setup. Group creation and discovery are available above.</p>}
+   {!OWNER_FINGERPRINT&&<p className="hub-owner-error" role="status">Owner sign-in is awaiting account setup. Group creation and discovery are available above.</p>}
   </div>
  </section>;
 }

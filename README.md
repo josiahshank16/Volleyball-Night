@@ -8,7 +8,7 @@ The central `volleyball-night.web.app` site is the launchpad for creating and fi
 
 An open group's six-digit PIN prompts on Organizer, Scorekeeper, and Switch mode buttons. Direct mode URLs and the group database remain open; the PIN is a convenience prompt, not data protection. Check-in and TV remain open. Already protected groups retain their existing Firebase Authentication path.
 
-The hub owner area verifies a Google account through Google's userinfo API and compares its verified email with `VITE_HUB_OWNER_EMAIL`. Configure this exact email in the GitHub Actions repository variable before enabling the owner area. It contains a read-only summary and backup download for the original project; the original project no longer runs gameplay on the central site. This is a client-side hub gate: it does not secure an open Firestore database. The public Create and Find flows remain available to group owners using their own Google accounts.
+The hub owner area verifies a Google account through Google's userinfo API and compares a SHA-256 fingerprint of its verified email with `VITE_HUB_OWNER_EMAIL_SHA256`. The deployment workflow sets that fingerprint for the designated host account. It contains a read-only summary and backup download for the original project; the original project no longer runs gameplay on the central site. This is a client-side hub gate: it does not secure an open Firestore database. The public Create and Find flows remain available to group owners using their own Google accounts.
 
 ## Run in GitHub Codespaces
 
