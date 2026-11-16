@@ -67,26 +67,19 @@ export async function enableLeaderAuthentication(projectId:string,token:string){
  }
  const base='https://identitytoolkit.googleapis.com/admin/v2/projects/'+encodeURIComponent(projectId)+'/config';
  // Enabling the API does not create the project's Authentication config.
- // Fresh Firebase projects return CONFIGURATION_NOT_FOUND until initialized.
- try{await ownerApi(base,token)}
+ // The public initialization endpoint can require billing on Spark projects.
+ // The standard Firebase Console setup enables email/password at no cost.
+ let config:{signIn?:{email?:{enabled?:boolean;passwordRequired?:boolean}}};
+ try{config=await ownerApi(base,token)}
  catch(e){
   const missing=(e as GoogleError).status===404||/CONFIGURATION_NOT_FOUND/.test((e as Error).message);
   if(!missing)throw e;
-  try{
-   await ownerApi('https://identitytoolkit.googleapis.com/v2/projects/'+
-    encodeURIComponent(projectId)+'/identityPlatform:initializeAuth',token,'POST',{});
-  }catch(initError){if((initError as GoogleError).status!==409)throw initError;}
+  config={};
  }
- for(let attempt=0;attempt<12;attempt++){
-  try{
-   await ownerApi(base+'?updateMask=signIn.email.enabled,signIn.email.passwordRequired',token,'PATCH',
-    {signIn:{email:{enabled:true,passwordRequired:true}}});
-   return;
-  }catch(e){
-   const preparing=(e as GoogleError).status===404||/CONFIGURATION_NOT_FOUND/.test((e as Error).message);
-   if(!preparing||attempt===11)throw e;
-   await new Promise(resolve=>setTimeout(resolve,1500));
-  }
+ if(config.signIn?.email?.enabled!==true||config.signIn.email.passwordRequired!==true){
+  const setupError=new Error('Firebase Authentication needs its one-time setup in the Firebase console. Open Authentication, click Get started, then enable Email/Password under Sign-in method. Return here and retry this same group.') as GoogleError&{code?:string};
+  setupError.code='AUTH_SETUP_REQUIRED';
+  throw setupError;
  }
 }
 

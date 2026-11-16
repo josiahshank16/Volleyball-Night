@@ -11,6 +11,7 @@ const SCOPE='https://www.googleapis.com/auth/cloud-platform openid email profile
 export function OwnerAccess({protectedMode}:{protectedMode:boolean}){
  const [pin,setPin]=useState(''),[again,setAgain]=useState('');
  const [busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState('');
+ const [needsAuthSetup,setNeedsAuthSetup]=useState(false);
  const [done,setDone]=useState(false);
  const start=()=>{
   if(busy)return;
@@ -22,7 +23,7 @@ export function OwnerAccess({protectedMode}:{protectedMode:boolean}){
    setError('Google sign-in is not ready. Refresh this page and try again.');return;
   }
   if(!window.confirm(`${protectedMode?'Change':'Activate'} protected access for ${firebaseConfig.projectId}? This will use your Google account to ${protectedMode?'rotate the group PIN':'move the group to separate public kiosk and private leader data'}. A backup will be created first and the group website will be updated.`))return;
-  const chosenPin=pin;setPin('');setAgain('');setBusy(true);setError('');
+  const chosenPin=pin;setPin('');setAgain('');setBusy(true);setError('');setNeedsAuthSetup(false);
   setStatus('Choose the Google account that owns this group…');
   try{
    const client=window.google.accounts.oauth2.initTokenClient({
@@ -34,7 +35,8 @@ export function OwnerAccess({protectedMode}:{protectedMode:boolean}){
      }
      void protectGroup(chosenPin,result.access_token,setStatus)
       .then(()=>{setDone(true);setStatus('Protected access is active. Test the PIN in Organizer and Scorekeeper.')})
-      .catch(e=>setError((e as Error)?.message||String(e)))
+      .catch(e=>{setError((e as Error)?.message||String(e));
+       setNeedsAuthSetup((e as {code?:string})?.code==='AUTH_SETUP_REQUIRED')})
       .finally(()=>setBusy(false));
     },
     error_callback:e=>{setError('Google sign-in was interrupted: '+(e.type||'popup closed'));setBusy(false)}
@@ -71,6 +73,8 @@ export function OwnerAccess({protectedMode}:{protectedMode:boolean}){
     {busy?'Working with Google…':protectedMode?'Change PIN with Google':'Protect group with Google'}</button>
    {status&&<p className="vn-install-feedback" role="status">{status}</p>}
    {error&&<p className="fb-error" role="alert">{error} Your group and project are saved; reopen this page to retry the same group.</p>}
+   {needsAuthSetup&&<p><a className="btn secondary" href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`}
+    target="_blank" rel="noopener noreferrer">Open Firebase Authentication setup</a></p>}
    {done&&<p><a href={modeHref('organizer')}>Open Organizer</a> · <a href={modeHref('scorekeeper')}>Open Scorekeeper</a></p>}
   </section>
  </main></div>;

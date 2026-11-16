@@ -51,7 +51,10 @@ score, history, or access settings.
 
 1. Read and export the existing group state. Do not delete the original
    document during migration.
-2. Under owner-authorized Google OAuth, enable Firebase email/password Auth,
+2. On a new Spark group, the owner completes Firebase Console's one-time
+   Authentication setup and enables Email/Password under Sign-in method. The
+   public Identity Platform initialization API requires billing for this path.
+   Under owner-authorized Google OAuth, verify email/password Auth is ready,
    create the group's PIN account, and write the access configuration. Bind
    the Google account subject at setup for new groups; an IAM collaborator is not implicitly
    a Volleyball Night settings owner.
