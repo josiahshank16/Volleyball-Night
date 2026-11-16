@@ -5,11 +5,21 @@ service cloud.firestore {
   function leader() {
    return request.auth != null
      && request.auth.uid == get(/databases/$(database)/documents/access/config).data.leaderUid
-     && request.auth.token.auth_time >= get(/databases/$(database)/documents/access/config).data.pinChangedAt;
+     && (
+       (get(/databases/$(database)/documents/access/config).data.pinChangedAt is int
+         && request.auth.token.auth_time >= get(/databases/$(database)/documents/access/config).data.pinChangedAt)
+       || (get(/databases/$(database)/documents/access/config).data.pinChangedAt is timestamp
+         && request.auth.token.auth_time * 1000 >= get(/databases/$(database)/documents/access/config).data.pinChangedAt.toMillis())
+     );
   }
   match /access/{document} {
    allow get: if document == 'status';
-   allow list, write: if false;
+   // A fresh PIN sign-in may rotate the account password. Only the server
+   // timestamp cutoff can change; owner identity and leader UID stay private.
+   allow update: if document == 'config' && leader()
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinChangedAt'])
+     && request.resource.data.pinChangedAt == request.time;
+   allow list, create, delete: if false;
   }
   match /liveSessions/{sessionId} {
    allow get, update: if sessionId == 'current' && leader();

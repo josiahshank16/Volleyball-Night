@@ -10,8 +10,8 @@ rules migration below is finished and tested on a disposable group.
 
 | Role | Entry | Access |
 | --- | --- | --- |
-| Group owner | Google OAuth account bound when the group is created, with IAM permissions on that group's Firebase project | PIN creation and rotation, access settings, group website updates |
-| Leader | Six-digit group PIN checked by Firebase Authentication | Organizer and scorekeeper; no Google account needed on each device |
+| Group owner | Google OAuth account bound when the group is created, with IAM permissions on that group's Firebase project | Initial PIN, lost-PIN recovery, access settings, group website updates |
+| Leader | Six-digit group PIN checked by Firebase Authentication | Organizer and scorekeeper; current PIN can authorize a change to a new PIN |
 | Player kiosk | Open | Search/check in and submit a new player profile |
 | TV | Open | Published teams, schedule, and scores only |
 
@@ -38,9 +38,10 @@ URL, local storage, or public Firestore document.
 * `publicDisplays/current`: an explicit projection with names, team rosters,
   schedule, and scores. Public read, leader write.
 * `access/config`: bound Google owner subject, leader Firebase UID, and PIN
-  rotation epoch. Client reads denied. The Google project owner creates and
-  updates this through Google's administrative APIs with a short-lived OAuth
-  token. Settings must compare the signed-in Google subject before an update.
+  rotation cutoff. Client reads denied. The Google project owner creates and
+  recovers this through Google's administrative APIs with a short-lived OAuth
+  token. A freshly PIN-authenticated leader may update only the cutoff to a
+  Firestore server timestamp while changing the Firebase Auth password.
 
 An open kiosk necessarily lets a visitor check names in or out and submit a
 registration. Firestore rules must limit those public writes to attendance
@@ -66,8 +67,10 @@ score, history, or access settings.
    check-in, public TV read, and denied public leader writes in a test group.
    Only then mark the group protected. If activation stops, resume this same
    group rather than creating a new project.
-5. Rotate the PIN by updating the Firebase password and invalidating old
-   sessions in the rules; never store the PIN in Firestore or the app bundle.
+5. Rotate the PIN by signing in with the current PIN, setting the server
+   timestamp cutoff, and updating the Firebase password. Previous sessions
+   fail the rules check. The Google owner can recover a forgotten PIN. Never
+   store the PIN in Firestore or the app bundle.
 
 Existing independent groups continue using their current rules until their
 owner explicitly runs migration. Updating Hosting files alone must not claim
