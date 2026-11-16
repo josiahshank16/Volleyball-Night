@@ -1,10 +1,29 @@
-# Group access migration
+# Group access models
+
+## Default: shared group PIN for mode buttons
+
+New independent groups use a six-digit PIN saved as a SHA-256 reference in the
+existing open `liveSessions/current` group state. The setup wizard links to
+the PIN page after group initialization. The current PIN is required to change
+it. Check-in and TV buttons are open; Organizer, Scorekeeper, and Switch mode
+buttons ask for the PIN. Direct mode URLs, including `?mode=organizer` and
+`?mode=scorekeeper`, are reachable without it. The PIN page itself can also be
+reached directly; the first PIN can be set by anyone who gets there first.
+
+This is a convenience prompt, not access control. Anyone who can reach the
+group's Firestore project can read and replace the group data, and the PIN
+reference is in that readable data. Publicly editable data includes roster
+details, attendance, teams, scores, and history. Do not use this model for
+sensitive player information or a group that requires protected records.
+
+## Optional protected group migration (existing implementation)
 
 The current group app is an open prototype: `liveSessions/current` holds the
 entire app state as a JSON string, and its Firestore rules allow anyone with
 the group URL to read and replace that string. A PIN in React cannot secure
-that document. Do not present the PIN UI as protection until the data and
-rules migration below is finished and tested on a disposable group.
+that document. The separate Firebase Authentication model below requires a
+rules migration and a one-time Authentication enablement; new groups do not
+need it for the convenience prompt above.
 
 ## Intended roles
 
