@@ -438,9 +438,9 @@ export function GoogleSetupPilot(){
         Open independent group website <ExternalLink size={15}/>
        </a>}
       </section>
-      {isComplete&&<><p className="group-setup-muted">Finish group setup by setting the leader PIN before sharing this website.</p>
-      <a className="btn primary" href={'/?g='+encodeGroup(ready)+'&mode=owner-settings'}>
-       <ShieldCheck size={17}/> Set leader PIN
+      {isComplete&&<><p className="group-setup-muted">Set a group PIN for the mode buttons before sharing this website. Check-in and TV will stay open.</p>
+      <a className="btn primary" href={'/?g='+encodeGroup(ready)+'&mode=pin-settings'}>
+       <ShieldCheck size={17}/> Set group PIN
       </a>
       <button type="button" className="btn secondary" onClick={()=>window.location.assign(installedUrl)}>
        Open my Volleyball Night <ArrowRight size={17}/>
