@@ -5,7 +5,7 @@ import {ModeSwitch,modeHref} from './ModeHome';
 import {completeFirebaseSetup} from './provisionFirebase';
 import {installIndependentGroupWebsite} from './hostingInstaller';
 import {advanceSetupProgress,SETUP_PROGRESS_SLOTS,type SetupProgressEvent} from './setupProgress';
-import {encodeGroup,validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
+import {validateGroup,GROUP_STORAGE_KEY,type GroupConnection} from './groupConnection';
 import {allocateCheckpoint,clearCheckpoint,COMPLETED_KEY,ensureCloudProject,readCheckpoint,saveCheckpoint,type SetupCheckpoint} from './cloudProject';
 
 const OAUTH_ID_KEY='volleyball-night-oauth-pilot-client-id';
@@ -439,7 +439,7 @@ export function GoogleSetupPilot(){
        </a>}
       </section>
       {isComplete&&<><p className="group-setup-muted">Set a group PIN for the mode buttons before sharing this website. Check-in and TV will stay open.</p>
-      <a className="btn primary" href={'/?g='+encodeGroup(ready)+'&mode=pin-settings'}>
+      <a className="btn primary" href={installedUrl+'?mode=pin-settings'}>
        <ShieldCheck size={17}/> Set group PIN
       </a>
       <button type="button" className="btn secondary" onClick={()=>window.location.assign(installedUrl)}>

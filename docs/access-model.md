@@ -34,11 +34,13 @@ need it for the convenience prompt above.
 | Player kiosk | Open | Search/check in and submit a new player profile |
 | TV | Open | Published teams, schedule, and scores only |
 
-The central site will become a public launchpad. When it is converted later, only
-the designated original-project owner account may enter its private app/admin
-pages. Each independent group uses its own project, owner, leader account, and
-PIN. No group PIN or Google access token is embedded in the website bundle,
-URL, local storage, or public Firestore document.
+The central site is a public launchpad for group creation and discovery.
+Its owner tools use a Google verified-email check against a configured exact
+address; this client-side gate does not protect central Firestore data. Each
+independent group uses its own project and group PIN. Open groups keep a PIN
+hash in the public group document; protected groups use their earlier Firebase
+Authentication path. Google access tokens are not saved to the website bundle,
+URL, or local storage.
 
 ## Firestore separation
 

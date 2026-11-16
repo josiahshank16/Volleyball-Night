@@ -48,9 +48,6 @@ export function decodeGroup(encoded:string):GroupConnection{
   return validateGroup(JSON.parse(new TextDecoder().decode(bytes)));
  }catch(err){throw Error('This group link could not be read. '+((err as Error)?.message??''))}
 }
-function savedGroup():GroupConnection|null{
- try{const item=localStorage.getItem(GROUP_STORAGE_KEY);return item?validateGroup(JSON.parse(item)):null}catch{return null;}
-}
 const independentConfig=window.__VOLLEYBALL_GROUP_CONFIG__;
 let independentGroup:GroupConnection|null=null;
 if(independentConfig!==undefined){
@@ -70,7 +67,7 @@ if(independentGroup){
   active=decodeGroup(param);
   localStorage.setItem(GROUP_STORAGE_KEY,JSON.stringify(active));
  }catch(err){invalidLink=(err as Error).message;}
-}else active=savedGroup();
+}else active=null; // The central site always starts as a hub, even after visiting a group.
 export const activeGroup=active;
 export const groupLinkError=invalidLink;
 export function useGroupLink(mode?:string):string{

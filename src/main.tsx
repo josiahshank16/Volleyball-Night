@@ -19,6 +19,7 @@ import {OwnerAccess} from './OwnerAccess';
 import {ChangePin} from './ChangePin';
 import {UiPinSettings} from './UiPinSettings';
 import {askForUiPin} from './uiPin';
+import {MainLaunchpad,GroupSiteHandoff} from './MainLaunchpad';
 import {toPublicTV,type PublicTVData} from './publicViews';
 import {DndContext,PointerSensor,KeyboardSensor,pointerWithin,rectIntersection,useSensor,useSensors,type DragEndEvent} from '@dnd-kit/core';
 import {DragPlayer,DropTeam} from './DragTeams';
@@ -285,6 +286,16 @@ function GroupAppRoutes(){
  return <ModeHome protectedMode/>;
 }
 
+function HubLegacyData(){
+ const {state,status,error}=useCloudState();
+ return <div className="hub-legacy-data"><h3>Original project archive</h3>
+  <p>The central project no longer runs game night. This read-only summary lets you keep a backup of its earlier data.</p>
+  {status==='connected'?<><div className="hub-legacy-stats"><span><strong>{state.players.length}</strong> player profiles</span><span><strong>{state.history.length}</strong> confirmed lineups</span></div>
+   <button className="hub-owner-button" type="button" onClick={()=>exportState(state)}><Download size={17}/> Download original data</button></>
+  :<p role="status">{status==='error'?error:'Connecting to the original project…'}</p>}
+ </div>;
+}
+
 
 
 function InvalidGroupLink(){
@@ -306,5 +317,8 @@ createRoot(document.getElementById('root')!).render(<React.StrictMode>{
  params.get('mode')==='setup'?<GoogleSetupPilot/>:
  params.get('mode')==='groups'?<MyGroups/>:
  params.get('mode')==='manual-setup'?<GroupSetup/>:
- params.has('device')?<ModeHome/>:<GroupAppRoutes/>
+ isIndependentGroupSite?<GroupAppRoutes/>:
+ params.has('g')&&activeGroup&&params.get('mode')==='owner-settings'?<GroupAppRoutes/>:
+ params.has('g')&&activeGroup?<GroupSiteHandoff projectId={activeGroup.config.projectId} mode={params.get('mode')}/>:
+ <MainLaunchpad ownerTools={<HubLegacyData/>}/>
 }</React.StrictMode>);

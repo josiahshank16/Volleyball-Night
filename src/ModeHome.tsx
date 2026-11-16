@@ -5,6 +5,7 @@ import {connectedGroupName,firebaseConfig} from './firebase';
 import {askForUiPin} from './uiPin';
 export type AppMode='home'|'kiosk'|'tv'|'scorekeeper'|'organizer'|'pin-settings'|'change-pin'|'owner-settings'|'setup'|'manual-setup'|'groups';
 export const modeHref=(mode:AppMode)=>{
+ if(!isIndependentGroupSite&&mode==='home')return '/';
  if(isIndependentGroupSite&&mode==='owner-settings'&&activeGroup)
   return 'https://volleyball-night.web.app/?g='+encodeGroup(activeGroup)+'&mode=owner-settings';
  if(isIndependentGroupSite&&['setup','manual-setup','groups'].includes(mode))
