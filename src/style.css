@@ -365,3 +365,19 @@
  .tv-schedule-row strong{display:none}.tv-schedule-row{grid-template-columns:clamp(18px,3vmin,28px) minmax(0,1fr)}
 }
 @media(max-height:500px){.tv{padding:5px 10px;gap:3px}.tv-top .eyebrow,.tv-foot{display:none}.tv-bottom{padding-top:3px}.tv-score-side strong{font-size:clamp(28px,8vh,55px)}}
+
+/* Organizer changes to confirmed rosters during a live night. */
+.live-roster{border-color:#b7dfd2;background:#f9fdfa}
+.live-roster .panel-top{align-items:flex-start}
+.live-roster-hint{font-size:13px;color:#567486;margin:8px 0 15px}
+.live-roster-available{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin:15px 0 20px}
+.live-roster-person{display:flex;align-items:center;justify-content:space-between;gap:10px;background:white;border:1px solid #d8e9e2;border-radius:10px;padding:10px 12px;font-size:13px}
+.live-roster-person label{color:#517268;font-size:11px;font-weight:700}
+.live-roster-person select{display:block;margin-top:3px;max-width:125px;padding:5px;border:1px solid #c9dcd7;border-radius:7px;background:white;color:#29495a}
+.live-new-team{border-top:1px solid #d7e8e1;padding-top:17px}
+.live-new-team h3{font-size:17px}.live-new-team p{font-size:12px;margin:5px 0 12px}
+.live-roster-choices{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 15px}
+.live-roster-choices label{display:flex;align-items:center;gap:6px;background:white;border:1px solid #d3e5df;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.live-roster-choices input{accent-color:#149781}
+.team-person>button.live-remove-player{flex:0 0 26px;min-width:26px;width:26px;justify-content:center;color:#ad5555;border-radius:6px;padding:4px}
+.team-person>button.live-remove-player:hover{background:#ffeaea}
