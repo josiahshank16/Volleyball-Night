@@ -124,7 +124,7 @@ function App({stateHook=useCloudState,protectedMode=false}:{stateHook?:typeof us
  };
  const openScorekeeper=()=>openWithPin('scorekeeper','open Scorekeeper');
  const viewDisplay=new URLSearchParams(location.search).get('mode')==='tv'||new URLSearchParams(location.search).has('display')||new URLSearchParams(location.search).has('publicTv');
- if(viewDisplay)return <><ModeSwitch floating uiPin={!protectedMode&&!!activeGroup}/><Display data={toPublicTV({...state,publicTVEnabled:true})}/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/></>;
+ if(viewDisplay)return <><Display data={toPublicTV({...state,publicTVEnabled:true})} uiPin={!protectedMode&&!!activeGroup}/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/></>;
  if(new URLSearchParams(location.search).get('mode')==='scorekeeper'||new URLSearchParams(location.search).has('scorekeeper'))return <><ModeSwitch floating uiPin={!protectedMode&&!!activeGroup}/><Scorekeeper state={state} update={update}/><CloudHealth mode={cloudMode} status={cloudStatus} error={cloudError}/></>;
  if(!organizer)return <>
   <KioskCheckin players={players} here={here} search={search} setSearch={setSearch} matches={searchMatches} showAllPlayers={showAllPlayers} setShowAllPlayers={setShowAllPlayers} message={message}
@@ -260,7 +260,48 @@ function Scorekeeper({state,update}:{state:AppState;update:(fn:(draft:AppState)=
  </div>
 }
 
-function Display({data}:{data:PublicTVData}){const t=data.teams;const games=data.games;const current=games[data.currentGame];return <div className="tv"><div className="tv-top"><div><div className="eyebrow">VOLLEYBALL NIGHT</div><h1>Tonight’s Teams</h1></div><span>{new Date(data.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</span></div><div className="tv-teams">{t.map((team,i)=><div className="tv-team" key={team.id}><div className={'tv-bar c'+i%6}/><h2>{team.name}</h2><div className="tv-people">{team.players.map((name,j)=><div key={j}>{name}</div>)}{Array.from({length:team.subs},(_,j)=><div className="tv-sub" key={j}>SUB</div>)}</div></div>)}</div>{t.length===0&&<div className="tv-empty">Teams will appear here once the organizer confirms them.</div>}<div className="tv-scoreboard">{current?<><div className="tv-score-side"><span>{t[current.a]?.name}</span><strong>{current.scoreA??0}</strong></div><div className="tv-score-mid"><small>GAME {data.currentGame+1}</small><b>:</b><small>TO {current.target??data.scoreTarget??25} · WIN BY 2</small></div><div className="tv-score-side"><span>{t[current.b]?.name}</span><strong>{current.scoreB??0}</strong></div></>:<div className="tv-score-wait">{games.length?'Schedule complete':'Scoreboard ready when the game starts'}</div>}</div><div className="tv-bottom"><div className="tv-status-card"><small>CURRENT GAME</small><h2>{current?`${t[current.a]?.name} vs ${t[current.b]?.name}`:games.length?'Schedule complete':'Waiting for schedule'}</h2><p>{games.length?`Game ${Math.min(data.currentGame+1,games.length)} of ${games.length}`:'Generate a schedule from the organizer view.'}</p></div><div className="tv-status-card"><small>GAME ORDER · {games.length} TOTAL</small><div className="tv-schedule">{games.length?games.slice(Math.max(0,Math.min(data.currentGame-1,games.length-5)),Math.max(0,Math.min(data.currentGame-1,games.length-5))+5).map((g,offset)=>{const i=offset+Math.max(0,Math.min(data.currentGame-1,games.length-5));return <div key={g.id} className={'tv-schedule-row '+(i===data.currentGame?'current':'')+(i<data.currentGame?' done':'')}><span>{i+1}</span><div>{t[g.a]?.name} <b>vs</b> {t[g.b]?.name}</div><strong>{i<data.currentGame?'Played':i===data.currentGame?'Current':'Upcoming'}</strong></div>}):<div className="tv-schedule-empty">No schedule has been created yet.</div>}</div></div></div><div className="tv-foot">Read-only display · To go fullscreen, use your browser’s fullscreen command</div></div>}
+function Display({data,uiPin=false}:{data:PublicTVData;uiPin?:boolean}){
+ const teams=data.teams,games=data.games,current=games[data.currentGame];
+ const start=Math.max(0,Math.min(data.currentGame-1,games.length-5));
+ return <div className="tv">
+  <header className="tv-top">
+   <div><div className="eyebrow">VOLLEYBALL NIGHT</div><h1>Tonight’s games</h1></div>
+   <div className="tv-top-meta"><span>{new Date(data.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</span><ModeSwitch uiPin={uiPin}/></div>
+  </header>
+  <main className="tv-live-grid">
+   <section className="tv-status-card tv-current-card">
+    <small>CURRENT GAME</small>
+    <h2>{current?`${teams[current.a]?.name} vs ${teams[current.b]?.name}`:games.length?'Schedule complete':'Waiting for schedule'}</h2>
+    <p>{games.length?`Game ${Math.min(data.currentGame+1,games.length)} of ${games.length}`:'Generate a schedule from the organizer view.'}</p>
+   </section>
+   <section className="tv-scoreboard" aria-label="Live score">
+    <div className="tv-card-label">SCORE</div>
+    {current?<div className="tv-score-content">
+     <div className="tv-score-side"><span>{teams[current.a]?.name}</span><strong>{current.scoreA??0}</strong></div>
+     <div className="tv-score-mid"><small>GAME {data.currentGame+1}</small><b>:</b><small>TO {current.target??data.scoreTarget??25} · WIN BY 2</small></div>
+     <div className="tv-score-side"><span>{teams[current.b]?.name}</span><strong>{current.scoreB??0}</strong></div>
+    </div>:<div className="tv-score-wait">{games.length?'Schedule complete':'Scoreboard ready when the game starts'}</div>}
+   </section>
+   <section className="tv-status-card tv-order-card">
+    <small>GAME ORDER · {games.length} TOTAL</small>
+    <div className="tv-schedule">{games.length?games.slice(start,start+5).map((g,offset)=>{
+     const i=start+offset;
+     return <div key={g.id} className={'tv-schedule-row '+(i===data.currentGame?'current':'')+(i<data.currentGame?' done':'')}>
+      <span>{i+1}</span><div>{teams[g.a]?.name} <b>vs</b> {teams[g.b]?.name}</div><strong>{i<data.currentGame?'Played':i===data.currentGame?'Current':'Upcoming'}</strong>
+     </div>
+    }):<div className="tv-schedule-empty">No schedule has been created yet.</div>}</div>
+   </section>
+  </main>
+  <section className="tv-teams" aria-label="Tonight’s teams">
+   {teams.map((team,i)=><div className="tv-team" key={team.id}>
+    <div className={'tv-bar c'+i%6}/><h2>{team.name}</h2>
+    <div className="tv-people">{team.players.map((name,j)=><div key={j}>{name}</div>)}{Array.from({length:team.subs},(_,j)=><div className="tv-sub" key={j}>SUB</div>)}</div>
+   </div>)}
+   {teams.length===0&&<div className="tv-empty">Teams will appear here once the organizer confirms them.</div>}
+  </section>
+  <div className="tv-foot">Read-only display · To go fullscreen, use your browser’s fullscreen command</div>
+ </div>;
+}
 
 function ProtectedKiosk(){
  const {players,here,ready,error,toggle,register}=usePublicKiosk();
@@ -285,7 +326,7 @@ function ProtectedKiosk(){
 
 function ProtectedTV(){
  const {data,error}=usePublicTV();
- return <><ModeSwitch floating/>{data?<Display data={data}/>:<div className="scorekeeper-placeholder"><Monitor size={44}/><h2>TV display waiting</h2><p>{error||'Connecting to your group…'}</p></div>}</>;
+ return <>{data?<Display data={data}/>:<><ModeSwitch floating/><div className="scorekeeper-placeholder"><Monitor size={44}/><h2>TV display waiting</h2><p>{error||'Connecting to your group…'}</p></div></>}</>;
 }
 
 function LeaderGate({mode}:{mode:'organizer'|'scorekeeper'}){
