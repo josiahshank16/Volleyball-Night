@@ -1,5 +1,5 @@
 export type Gender = 'woman' | 'man' | 'other' | 'unspecified';
-export type Player = {id:string; name:string; selfSkill:number; overrideSkill:number|null; gender:Gender; height:number|null; createdAt:number};
+export type Player = {id:string; name:string; firstName?:string; lastName?:string; selfSkill:number; overrideSkill:number|null; gender:Gender; height:number|null; createdAt:number};
 export type Roster = {id:string; name:string; playerIds:string[]; subs:number};
 export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; scoreTarget?:number; confirmedAt:number|null};
 export type Round = {id:string; at:number; rosters:Roster[]};
@@ -17,13 +17,15 @@ export const SKILLS = [
   ['Competitive','I regularly compete at a high level with strong serve receive, rotations, and fast offense.'],
   ['Elite','I play at an exceptional level with precise technique and advanced decisions under pressure.']
 ] as const;
+export const formatPlayerName=(name:string)=>name.trim().replace(/\s+/g,' ').toLocaleLowerCase().replace(/(^|[\s'-])\p{L}/gu,letter=>letter.toLocaleUpperCase());
+export function normalizePlayerNames(state:AppState):AppState {return {...state,players:state.players.map(p=>({...p,name:formatPlayerName(p.name),...(p.firstName?{firstName:formatPlayerName(p.firstName)}:{}),...(p.lastName?{lastName:formatPlayerName(p.lastName)}:{})}))};}
 export const uid=()=>crypto.randomUUID();
 export const skill=(p:Player)=>p.overrideSkill??p.selfSkill;
 export const ft=(inches:number|null)=>inches===null?'Not set':`${Math.floor(inches/12)}′${inches%12}″`;
 export const newSession=():Session=>({id:uid(),date:new Date().toISOString().slice(0,10),checkedIn:[],draft:[],confirmed:[],rounds:[],games:[],currentGame:0,scoreTarget:25,confirmedAt:null});
 export const initial=():AppState=>({players:[],session:newSession(),history:[],showNumbers:false});
 const STORE='volleyball-night-v01';
-export function load(storageKey=STORE):AppState {try{const raw=localStorage.getItem(storageKey);if(raw){const v=JSON.parse(raw) as AppState;if(v?.players&&v?.session&&v?.history)return v;}}catch{/* ignore corrupted local data */}return initial();}
+export function load(storageKey=STORE):AppState {try{const raw=localStorage.getItem(storageKey);if(raw){const v=JSON.parse(raw) as AppState;if(v?.players&&v?.session&&v?.history)return normalizePlayerNames(v);}}catch{/* ignore corrupted local data */}return initial();}
 export function save(s:AppState,storageKey=STORE){
  const next=JSON.stringify(s);
  // Avoid an endless storage-event ping-pong between open tabs.
