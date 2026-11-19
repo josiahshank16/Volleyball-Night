@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {arrayRemove,arrayUnion,collection,doc,onSnapshot,query,serverTimestamp,updateDoc,writeBatch} from 'firebase/firestore';
 import {firestore} from './firebase';
-import type {Player} from './model';
+import {formatPlayerName,type Player} from './model';
 import {PUBLIC_TV_REF,isPublicTVData,type PublicTVData} from './publicViews';
 
 export const ACCESS_STATUS_REF=doc(firestore,'access','status');
@@ -33,7 +33,7 @@ export function usePublicKiosk(){
  useEffect(()=>{
   const offPlayers=onSnapshot(query(PUBLIC_PLAYERS),snapshot=>{
    setPlayers(snapshot.docs.map(item=>({
-    id:item.id,name:String(item.data().name??''),selfSkill:5,overrideSkill:null,
+    id:item.id,name:formatPlayerName(String(item.data().name??'')),selfSkill:5,overrideSkill:null,
     gender:'unspecified' as const,height:null,createdAt:0
    })).sort((a,b)=>a.name.localeCompare(b.name)));
   },e=>setError(errorText(e)));
@@ -54,7 +54,7 @@ export function usePublicKiosk(){
  }
  async function register(player:Player){
   if(!ready)throw Error('Check-in is still connecting.');
-  const name=player.name.trim();
+  const name=formatPlayerName(player.name);
   if(!name||name.length>50)throw Error('Enter a player name up to 50 characters.');
   const batch=writeBatch(firestore);
   batch.set(doc(PUBLIC_PLAYERS,player.id),{name});

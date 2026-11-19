@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {collection,doc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firestore} from './firebase';
 import {groupLocalCacheKey} from './groupConnection';
-import {type AppState,type Player,load,save} from './model';
+import {normalizePlayerNames,type AppState,type Player,load,save} from './model';
 import {PUBLIC_TV_REF,toPublicTV} from './publicViews';
 
 const LIVE_REF=doc(firestore,'liveSessions','current');
@@ -17,7 +17,7 @@ function decode(raw:unknown):AppState{
  const state=JSON.parse(value) as AppState;
  if(!Array.isArray(state.players)||!state.session||!Array.isArray(state.history))
   throw Error('The protected group session is incompatible with this app.');
- return state;
+ return normalizePlayerNames(state);
 }
 const payload=(state:AppState)=>({json:JSON.stringify(state)});
 

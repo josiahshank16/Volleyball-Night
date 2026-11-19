@@ -2,7 +2,7 @@ import {useEffect,useState,useRef,useCallback} from 'react';
 import {doc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firestore} from './firebase';
 import {groupLocalCacheKey,activeGroup} from './groupConnection';
-import {type AppState,load,save,exportState} from './model';
+import {normalizePlayerNames,type AppState,load,save,exportState} from './model';
 
 // Open-access design prototype. The single document is readable and editable
 // by anyone using the app. The eventual production model can add a leader PIN.
@@ -24,7 +24,7 @@ function decode(source:unknown):AppState{
   v=JSON.parse(json);
  }
  if(!valid(v))throw Error('The cloud session has an unsupported data format.');
- return v;
+ return normalizePlayerNames(v);
 }
 const encode=(state:AppState)=>({json:JSON.stringify(state)});
 const describe=(e:unknown)=>{

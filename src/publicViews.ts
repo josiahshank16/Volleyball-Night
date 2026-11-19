@@ -1,6 +1,6 @@
 import {doc} from 'firebase/firestore';
 import {firestore} from './firebase';
-import type {AppState} from './model';
+import {formatPlayerName,type AppState} from './model';
 
 /**
  * A deliberately restricted projection for the public TV.
@@ -21,7 +21,7 @@ export type PublicTVData={
 export const PUBLIC_TV_REF=doc(firestore,'publicDisplays','current');
 
 export function toPublicTV(state:AppState):PublicTVData{
- const names=new Map(state.players.map(p=>[p.id,p.name]));
+ const names=new Map(state.players.map(p=>[p.id,formatPlayerName(p.name)]));
  const session=state.session;
  return {
   schemaVersion:1,
