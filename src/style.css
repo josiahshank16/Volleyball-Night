@@ -414,3 +414,26 @@
 /* Keep mode navigation in the organizer header, including narrow screens. */
 .header .vn-mode-switch{position:static;display:inline;background:none;border:0;border-radius:0;box-shadow:none;padding:0;font:inherit;color:inherit;white-space:nowrap;text-decoration:none}.header .vn-mode-switch svg{display:none}.header .vn-mode-switch:hover,.header .vn-mode-switch:focus-visible{background:none;color:#108d79;text-decoration:underline}
 @media(max-width:760px){.header{gap:12px}.header .headright{display:flex;flex-shrink:0}.header .headright .organizer-header-detail,.header .headright .tiny-dot{display:none}.header .crumb{min-width:0;gap:5px}.header .crumb>span{display:none}}
+
+/* Actual panel measurements determine text size instead of conservative viewport caps. */
+.tv [data-tv-fit]{font-size:var(--tv-fit,24px)}
+.tv-top h1{font-size:clamp(26px,4.2vmin,64px)}.tv-top .eyebrow{font-size:clamp(12px,1.6vmin,24px)}
+.tv-top-meta span,.tv-top .vn-mode-switch{font-size:clamp(14px,2vmin,28px)}
+.tv-team{display:flex;flex-direction:column;gap:.12em}.tv-team .tv-bar{flex-shrink:0;margin-bottom:.08em}
+.tv-team h2{font-size:1.25em;line-height:1.05;margin-bottom:.12em;flex-shrink:0}
+.tv-team .tv-people{font-size:1em;line-height:1.1;gap:.12em;flex-shrink:0;overflow-wrap:normal}
+.tv-current-card small,.tv-order-card>small,.tv-scoreboard>.tv-card-label{font-size:.55em;line-height:1.1;letter-spacing:.06em;flex-shrink:0}
+.tv-current-card h2{font-size:1.5em;line-height:1.12;margin-top:.35em}.tv-current-card p{font-size:.65em;line-height:1.2;margin-top:.35em}
+.tv-score-content{grid-template-columns:minmax(0,1fr) .65fr minmax(0,1fr);gap:.12em}
+.tv-score-side{gap:.12em}.tv-score-side span{font-size:.8em;line-height:1.1}.tv-score-side strong{font-size:4.8em;line-height:.9;letter-spacing:-.04em}
+.tv-score-side .point-status{font-size:.65em;min-height:1.1em}.tv-score-mid{gap:.2em}.tv-score-mid b{font-size:1.5em}.tv-score-mid small{font-size:.4em;line-height:1.15}
+.tv-score-wait{font-size:1em}
+.tv-order-card .tv-schedule{gap:.16em;margin-top:.2em;flex-shrink:0}
+.tv-order-card .tv-schedule-row{grid-template-columns:1em minmax(0,1fr);gap:.25em;padding:.2em;align-content:center}
+.tv-order-card .tv-schedule-row>span{width:1em;height:1em;font-size:.65em}
+.tv-order-card .tv-schedule-row div{font-size:1em;line-height:1.15;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.tv-order-card .tv-schedule-row strong{display:none}
+.tv-previous{flex-shrink:0;max-height:none;padding:.15em 0}.tv-previous small{font-size:.45em}.tv-previous-results{font-size:.6em;line-height:1.2;overflow:visible}
+.tv-up-next small{font-size:.4em}.tv-up-next strong{font-size:1.3em;line-height:1.1}
+.tv-checkin-heading h2{font-size:1.1em}.tv-checkin-heading>strong{font-size:.7em}.tv-checkin .eyebrow{font-size:.4em}.tv-checkin>p{font-size:.8em}
+.tv-checkin-names>div{font-size:1em;line-height:1.1;padding:.2em}
