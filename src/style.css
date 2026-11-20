@@ -410,3 +410,7 @@
 .tv-checkin-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:clamp(5px,1vmin,16px);min-height:0;align-content:start;overflow:auto}.tv-checkin-names>div{padding:clamp(6px,1.3vmin,20px);border-radius:10px;background:#213e59;font-size:clamp(16px,2.5vmin,34px);font-weight:700}.tv-checkin>p{color:#9cb2c7;font-size:24px}
 
 .tv-checkin-names{flex:1;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(var(--checkin-rows),minmax(0,1fr));overflow:hidden;gap:min(1vmin,calc(8vh / var(--checkin-rows)))}.tv-checkin-names>div{display:flex;align-items:center;padding:min(1.3vmin,calc(6vh / var(--checkin-rows)));font-size:min(2.5vmin,calc(48vh / var(--checkin-rows)));overflow-wrap:anywhere;min-height:0;overflow:hidden}
+
+/* Keep mode navigation in the organizer header, including narrow screens. */
+.header .vn-mode-switch{position:static;display:inline;background:none;border:0;border-radius:0;box-shadow:none;padding:0;font:inherit;color:inherit;white-space:nowrap;text-decoration:none}.header .vn-mode-switch svg{display:none}.header .vn-mode-switch:hover,.header .vn-mode-switch:focus-visible{background:none;color:#108d79;text-decoration:underline}
+@media(max-width:760px){.header{gap:12px}.header .headright{display:flex;flex-shrink:0}.header .headright .organizer-header-detail,.header .headright .tiny-dot{display:none}.header .crumb{min-width:0;gap:5px}.header .crumb>span{display:none}}
