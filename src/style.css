@@ -437,3 +437,12 @@
 .tv-up-next small{font-size:.4em}.tv-up-next strong{font-size:1.3em;line-height:1.1}
 .tv-checkin-heading h2{font-size:1.1em}.tv-checkin-heading>strong{font-size:.7em}.tv-checkin .eyebrow{font-size:.4em}.tv-checkin>p{font-size:.8em}
 .tv-checkin-names>div{font-size:1em;line-height:1.1;padding:.2em}
+
+/* Equal side columns keep the scoreboard at the screen's horizontal center. */
+@media(min-aspect-ratio:4/5){.tv-live-grid{grid-template-columns:minmax(0,.85fr) minmax(0,1.45fr) minmax(0,.85fr)}}
+/* Score sizing is independent of labels and historical results. */
+.tv-scoreboard{container-type:size}
+.tv-scoreboard>.tv-card-label{font-size:clamp(16px,2vmin,28px);line-height:1.3}
+.tv-scoreboard .tv-score-content{font-size:4vmin;font-size:min(6cqw,13cqh)}
+.tv-scoreboard .tv-score-side strong{font-size:4.8em}
+.tv-order-card>small{line-height:1.4}
