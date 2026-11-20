@@ -392,3 +392,21 @@
 .live-roster-choices input{accent-color:#149781}
 .team-person>button.live-remove-player{flex:0 0 26px;min-width:26px;width:26px;justify-content:center;color:#ad5555;border-radius:6px;padding:4px}
 .team-person>button.live-remove-player:hover{background:#ffeaea}
+
+/* Live TV match announcements stay within the game panels, above rosters. */
+.tv-live-grid{position:relative}
+.tv-up-next{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;background:#142d48f5;border:2px solid #62d8be;border-radius:18px;text-align:center;padding:20px;overflow:hidden}
+.tv-up-next small{color:#8ae3ce;font-size:clamp(14px,2.5vmin,32px);font-weight:800;letter-spacing:.12em}
+.tv-up-next strong{font-family:Outfit,sans-serif;font-size:clamp(32px,8vmin,110px);line-height:1.1;overflow-wrap:anywhere}.tv-up-next strong span{color:#8da8bf;font-size:.6em}
+.point-status{font-weight:800;font-size:clamp(12px,2vmin,25px);min-height:1.2em}
+.set-point .point-status,.set-point .scorekeeper-number,.tv-score-side.set-point strong{color:#ff7777}
+.winner .point-status,.winner .scorekeeper-number,.tv-score-side.winner strong,.result-winner{color:#63dfac;font-weight:800}
+.previous-games{background:#f1f6f5;border-radius:12px;padding:16px}.previous-games p{margin-top:6px}.previous-games .result-winner{color:#087347}
+.tv-previous{min-height:0;max-height:35%;display:flex;flex-direction:column;border-bottom:1px solid #38536f;padding:8px 0}.tv-previous small{font-size:clamp(9px,1.1vmin,14px)}
+.tv-previous-results{overflow:auto;min-height:0;font-size:clamp(10px,1.5vmin,20px);line-height:1.5}
+.tv-waiting{grid-template-rows:auto minmax(0,1fr) auto}
+.tv-checkin{min-height:0;background:#182e48;border:1px solid #38536f;border-radius:18px;padding:clamp(14px,2vmin,30px);display:flex;flex-direction:column;overflow:hidden}
+.tv-checkin-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:3vh}.tv-checkin-heading h2{font-size:clamp(24px,4vmin,54px)}.tv-checkin-heading>strong{font-size:clamp(18px,3vmin,36px);color:#76dfc3}
+.tv-checkin-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:clamp(5px,1vmin,16px);min-height:0;align-content:start;overflow:auto}.tv-checkin-names>div{padding:clamp(6px,1.3vmin,20px);border-radius:10px;background:#213e59;font-size:clamp(16px,2.5vmin,34px);font-weight:700}.tv-checkin>p{color:#9cb2c7;font-size:24px}
+
+.tv-checkin-names{flex:1;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(var(--checkin-rows),minmax(0,1fr));overflow:hidden;gap:min(1vmin,calc(8vh / var(--checkin-rows)))}.tv-checkin-names>div{display:flex;align-items:center;padding:min(1.3vmin,calc(6vh / var(--checkin-rows)));font-size:min(2.5vmin,calc(48vh / var(--checkin-rows)));overflow-wrap:anywhere;min-height:0;overflow:hidden}

@@ -52,7 +52,7 @@ service cloud.firestore {
         && displayId == 'current'
         && request.resource.data.keys().hasOnly([
           'schemaVersion','enabled','date','teams','games',
-          'currentGame','scoreTarget','updatedAt'
+          'currentGame','scoreTarget','checkedInNames','updatedAt'
         ])
         && request.resource.data.schemaVersion == 1
         && request.resource.data.enabled is bool
