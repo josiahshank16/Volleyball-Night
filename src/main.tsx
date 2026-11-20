@@ -269,7 +269,23 @@ function useTVTextFit(dependency:unknown){
   const fit=()=>{
    for(const panel of root.querySelectorAll<HTMLElement>('[data-tv-fit]')){
     if(!panel.clientWidth||!panel.clientHeight)continue;
-    const fits=()=>[panel,...panel.querySelectorAll<HTMLElement>('*')].every(el=>el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1);
+    // Inline text has no client box; comparing its scroll/client dimensions
+    // incorrectly flags overflow even when a panel is nearly empty.
+    const fits=()=>{
+     const bounds=panel.getBoundingClientRect(),style=getComputedStyle(panel);
+     const left=bounds.left+parseFloat(style.paddingLeft)+1,right=bounds.right-parseFloat(style.paddingRight)-1;
+     const top=bounds.top+parseFloat(style.paddingTop)+1,bottom=bounds.bottom-parseFloat(style.paddingBottom)-1;
+     const walker=document.createTreeWalker(panel,NodeFilter.SHOW_TEXT);const range=document.createRange();
+     let node:Node|null;
+     while((node=walker.nextNode())){
+      if(!node.textContent?.trim())continue;
+      range.selectNodeContents(node);
+      for(const rect of range.getClientRects()){
+       if(rect.width&&rect.height&&(rect.left<left-1||rect.right>right+1||rect.top<top-1||rect.bottom>bottom+1))return false;
+      }
+     }
+     return true;
+    };
     let low=6,high=Math.min(panel.clientWidth,panel.clientHeight);
     for(let i=0;i<12;i++){
      const mid=(low+high)/2;panel.style.setProperty('--tv-fit',mid+'px');
