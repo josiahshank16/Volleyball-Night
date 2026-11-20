@@ -1,4 +1,4 @@
-import React, {useEffect,useMemo,useState} from 'react';
+import React, {useEffect,useLayoutEffect,useRef,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Users,UserPlus,ClipboardCheck,Shuffle,CalendarDays,Monitor,Settings,Search,Check,Plus,ChevronRight,ArrowRight,RotateCcw,Download,Trash2, X, Info, Cloud, Play, Minus, Undo2, Trophy, RefreshCw, Pencil, CircleCheck, KeyRound, Volleyball, ArrowUpRight} from 'lucide-react';
 import {pointStatus,formatPlayerName,AppState,Player,SKILLS,uid,ft,skill,newSession,samplePlayers,configs,generate,buildGames,exportState,Gender,SCORE_TARGETS,winnerOf} from './model';
@@ -260,24 +260,52 @@ function Scorekeeper({state,update}:{state:AppState;update:(fn:(draft:AppState)=
  </div>
 }
 
+/** Fit the actual text, including long names, to each TV panel's measured space. */
+function useTVTextFit(dependency:unknown){
+ const ref=useRef<HTMLDivElement>(null);
+ useLayoutEffect(()=>{
+  const root=ref.current;if(!root)return;
+  let frame=0,active=true;
+  const fit=()=>{
+   for(const panel of root.querySelectorAll<HTMLElement>('[data-tv-fit]')){
+    if(!panel.clientWidth||!panel.clientHeight)continue;
+    const fits=()=>[panel,...panel.querySelectorAll<HTMLElement>('*')].every(el=>el.scrollWidth<=el.clientWidth+1&&el.scrollHeight<=el.clientHeight+1);
+    let low=6,high=Math.min(panel.clientWidth,panel.clientHeight);
+    for(let i=0;i<12;i++){
+     const mid=(low+high)/2;panel.style.setProperty('--tv-fit',mid+'px');
+     if(fits())low=mid;else high=mid;
+    }
+    panel.style.setProperty('--tv-fit',Math.max(6,low-.5)+'px');
+   }
+  };
+  const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(fit)};
+  const observer=new ResizeObserver(schedule);observer.observe(root);
+  root.querySelectorAll<HTMLElement>('[data-tv-fit]').forEach(panel=>observer.observe(panel));
+  fit();document.fonts.ready.then(()=>{if(active)schedule()});
+  return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame)};
+ },[dependency]);
+ return ref;
+}
+
 function Display({data,uiPin=false}:{data:PublicTVData;uiPin?:boolean}){
+ const fitRef=useTVTextFit(data);
  const teams=data.teams,games=data.games,current=games[data.currentGame];
  const waiting=teams.length===0;
  const played=games.filter((g,i)=>g.finished||i<data.currentGame);
  const upcoming=games.map((g,i)=>({g,i})).filter(({g,i})=>!g.finished&&i>=data.currentGame).slice(0,4);
  const scoreSide=(side:'a'|'b')=><div className={'tv-score-side '+pointStatus(current,side,data.scoreTarget)}><span>{teams[current[side]]?.name}</span><strong>{side==='a'?current.scoreA:current.scoreB}</strong><span className="point-status">{pointStatus(current,side,data.scoreTarget)==='winner'?'Winner':pointStatus(current,side,data.scoreTarget)==='set-point'?'Set Point':'\u00a0'}</span></div>;
- return <div className={'tv '+(waiting?'tv-waiting':'')}>
+ return <div ref={fitRef} className={'tv '+(waiting?'tv-waiting':'')}>
   <header className="tv-top">
    <div><div className="eyebrow">VOLLEYBALL NIGHT</div><h1>Tonight’s games</h1></div>
    <div className="tv-top-meta"><span>{new Date(data.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</span><ModeSwitch uiPin={uiPin}/></div>
   </header>
-  {waiting?<section className="tv-checkin"><div className="tv-checkin-heading"><div><div className="eyebrow">WELCOME TO THE COURT</div><h2>Who’s playing tonight?</h2></div><strong>{data.checkedInNames?.length??0} checked in</strong></div><div className="tv-checkin-names" style={{'--checkin-rows':Math.max(1,Math.ceil((data.checkedInNames?.length??0)/4))} as React.CSSProperties}>{(data.checkedInNames??[]).map((name,i)=><div key={i}>{formatPlayerName(name)}</div>)}</div>{!data.checkedInNames?.length&&<p>Check in to see your name here. Teams are coming soon!</p>}</section>:<><main className="tv-live-grid">
-   <section className="tv-status-card tv-current-card">
+  {waiting?<section data-tv-fit className="tv-checkin"><div className="tv-checkin-heading"><div><div className="eyebrow">WELCOME TO THE COURT</div><h2>Who’s playing tonight?</h2></div><strong>{data.checkedInNames?.length??0} checked in</strong></div><div className="tv-checkin-names" style={{'--checkin-rows':Math.max(1,Math.ceil((data.checkedInNames?.length??0)/4))} as React.CSSProperties}>{(data.checkedInNames??[]).map((name,i)=><div key={i}>{formatPlayerName(name)}</div>)}</div>{!data.checkedInNames?.length&&<p>Check in to see your name here. Teams are coming soon!</p>}</section>:<><main className="tv-live-grid">
+   <section data-tv-fit className="tv-status-card tv-current-card">
     <small>CURRENT GAME</small>
     <h2>{current?`${teams[current.a]?.name} vs ${teams[current.b]?.name}`:games.length?'Schedule complete':'Waiting for schedule'}</h2>
     <p>{games.length?`Game ${Math.min(data.currentGame+1,games.length)} of ${games.length}`:'Generate a schedule from the organizer view.'}</p>
    </section>
-   <section className="tv-scoreboard" aria-label="Live score">
+   <section data-tv-fit className="tv-scoreboard" aria-label="Live score">
     <div className="tv-card-label">SCORE</div>
     {current?<div className="tv-score-content">
      {scoreSide(current.sidesSwapped?'b':'a')}
@@ -285,15 +313,15 @@ function Display({data,uiPin=false}:{data:PublicTVData;uiPin?:boolean}){
      {scoreSide(current.sidesSwapped?'a':'b')}
     </div>:<div className="tv-score-wait">{games.length?'Schedule complete':'Scoreboard ready when the game starts'}</div>}
    </section>
-   <section className="tv-status-card tv-order-card">
+   <section data-tv-fit className="tv-status-card tv-order-card">
     <small>GAME ORDER · {games.length} TOTAL</small>
     {played.length>0&&<div className="tv-previous"><small>PREVIOUS GAMES</small><div className="tv-previous-results">{played.map(g=><div key={g.id}><span className={pointStatus(g,'a',data.scoreTarget)==='winner'?'result-winner':''}>{teams[g.a]?.name} {g.scoreA}</span><span> – </span><span className={pointStatus(g,'b',data.scoreTarget)==='winner'?'result-winner':''}>{teams[g.b]?.name} {g.scoreB}</span></div>)}</div></div>}
     <div className="tv-schedule">{upcoming.length?upcoming.map(({g,i})=><div key={g.id} className={'tv-schedule-row '+(i===data.currentGame?'current':'')}><span>{i+1}</span><div>{teams[g.a]?.name} <b>vs</b> {teams[g.b]?.name}</div><strong>{i===data.currentGame?'Current':'Upcoming'}</strong></div>):<div className="tv-schedule-empty">{games.length?'Schedule complete':'No schedule yet'}</div>}</div>
    </section>
-   {current&&current.scoreA===0&&current.scoreB===0&&!current.finished&&<div className="tv-up-next"><small>UP NEXT · GAME {data.currentGame+1}</small><strong>{teams[current.sidesSwapped?current.b:current.a]?.name} <span>vs</span> {teams[current.sidesSwapped?current.a:current.b]?.name}</strong></div>}
+   {current&&current.scoreA===0&&current.scoreB===0&&!current.finished&&<div data-tv-fit className="tv-up-next"><small>UP NEXT · GAME {data.currentGame+1}</small><strong>{teams[current.sidesSwapped?current.b:current.a]?.name} <span>vs</span> {teams[current.sidesSwapped?current.a:current.b]?.name}</strong></div>}
   </main>
   <section className="tv-teams" aria-label="Tonight’s teams">
-   {teams.map((team,i)=><div className="tv-team" key={team.id}>
+   {teams.map((team,i)=><div data-tv-fit className="tv-team" key={team.id}>
     <div className={'tv-bar c'+i%6}/><h2>{team.name}</h2>
     <div className="tv-people">{team.players.map((name,j)=><div key={j}>{formatPlayerName(name)}</div>)}{Array.from({length:team.subs},(_,j)=><div className="tv-sub" key={j}>SUB</div>)}</div>
    </div>)}
