@@ -272,9 +272,11 @@ function useTVTextFit(dependency:unknown){
     // Inline text has no client box; comparing its scroll/client dimensions
     // incorrectly flags overflow even when a panel is nearly empty.
     const fits=()=>{
-     const bounds=panel.getBoundingClientRect(),style=getComputedStyle(panel);
-     const left=bounds.left+parseFloat(style.paddingLeft)+1,right=bounds.right-parseFloat(style.paddingRight)-1;
-     const top=bounds.top+parseFloat(style.paddingTop)+1,bottom=bounds.bottom-parseFloat(style.paddingBottom)-1;
+     const bounds=panel.getBoundingClientRect();
+     // Font glyphs can overhang their line boxes into padding without
+     // overflowing the panel. Test the visible panel, not the padding edge.
+     const left=bounds.left+2,right=bounds.right-2;
+     const top=bounds.top+2,bottom=bounds.bottom-2;
      const walker=document.createTreeWalker(panel,NodeFilter.SHOW_TEXT);const range=document.createRange();
      let node:Node|null;
      while((node=walker.nextNode())){
@@ -321,7 +323,7 @@ function Display({data,uiPin=false}:{data:PublicTVData;uiPin?:boolean}){
     <h2>{current?`${teams[current.a]?.name} vs ${teams[current.b]?.name}`:games.length?'Schedule complete':'Waiting for schedule'}</h2>
     <p>{games.length?`Game ${Math.min(data.currentGame+1,games.length)} of ${games.length}`:'Generate a schedule from the organizer view.'}</p>
    </section>
-   <section data-tv-fit className="tv-scoreboard" aria-label="Live score">
+   <section className="tv-scoreboard" aria-label="Live score">
     <div className="tv-card-label">SCORE</div>
     {current?<div className="tv-score-content">
      {scoreSide(current.sidesSwapped?'b':'a')}
