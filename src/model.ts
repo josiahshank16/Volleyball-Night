@@ -3,7 +3,7 @@ export type Player = {id:string; name:string; firstName?:string; lastName?:strin
 export type Roster = {id:string; name:string; playerIds:string[]; subs:number};
 export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; scoreTarget?:number; confirmedAt:number|null};
 export type Round = {id:string; at:number; rosters:Roster[]};
-export type Game = {id:string; a:number; b:number; cycle:number; scoreA?:number; scoreB?:number; serving?:'a'|'b'|null; scoreHistory?:{a:number;b:number;serving:'a'|'b'|null}[]; finishedAt?:number; target?:number};
+export type Game = {id:string; a:number; b:number; cycle:number; sidesSwapped?:boolean; scoreA?:number; scoreB?:number; serving?:'a'|'b'|null; scoreHistory?:{a:number;b:number;serving:'a'|'b'|null}[]; finishedAt?:number; target?:number};
 export type AppState = {players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean; publicTVEnabled?:boolean; uiPinHash?:string};
 export const SKILLS = [
   ['First Timer','I’m brand new to indoor volleyball and learning the rules, serving, and basic contact.'],
@@ -116,3 +116,11 @@ export function buildGames(count:number,cycles:number,fullFour:boolean):Game[]{
   return Array.from({length:cycles},(_,cycle)=>pattern.map(([a,b])=>({id:uid(),a,b,cycle:cycle+1}))).flat();
 }
 export function exportState(state:AppState){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download=`volleyball-night-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+
+/** Status follows the team, independent of its physical side of the court. */
+export function pointStatus(game:{scoreA?:number;scoreB?:number;target?:number},side:'a'|'b',fallbackTarget=25):'winner'|'set-point'|'' {
+ const a=game.scoreA??0,b=game.scoreB??0,target=game.target??fallbackTarget;
+ const own=side==='a'?a:b,other=side==='a'?b:a;
+ if(Math.max(a,b)>=target&&Math.abs(a-b)>=2)return own>other?'winner':'';
+ return own+1>=target&&own+1-other>=2?'set-point':'';
+}
