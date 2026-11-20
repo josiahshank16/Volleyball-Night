@@ -13,8 +13,9 @@ export type PublicTVData={
  schemaVersion:1;
  enabled:boolean;
  date:string;
+ checkedInNames?:string[];
  teams:{id:string;name:string;players:string[];subs:number}[];
- games:{id:string;a:number;b:number;scoreA:number;scoreB:number;target:number;finished:boolean}[];
+ games:{id:string;a:number;b:number;scoreA:number;scoreB:number;target:number;finished:boolean;sidesSwapped?:boolean}[];
  currentGame:number;
  scoreTarget:number;
 };
@@ -27,13 +28,14 @@ export function toPublicTV(state:AppState):PublicTVData{
   schemaVersion:1,
   enabled:state.publicTVEnabled===true,
   date:session.date,
+  checkedInNames:session.checkedIn.map(id=>names.get(id)).filter((name):name is string=>!!name).sort((a,b)=>a.localeCompare(b)),
   teams:session.confirmed.map(t=>({
     id:t.id,name:t.name,players:t.playerIds.map(id=>names.get(id)??'Former player'),
     subs:t.subs
   })),
   games:session.games.map(g=>({
     id:g.id,a:g.a,b:g.b,scoreA:g.scoreA??0,scoreB:g.scoreB??0,
-    target:g.target??session.scoreTarget??25,finished:!!g.finishedAt
+    target:g.target??session.scoreTarget??25,finished:!!g.finishedAt,sidesSwapped:!!g.sidesSwapped
   })),
   currentGame:session.currentGame,
   scoreTarget:session.scoreTarget??25
