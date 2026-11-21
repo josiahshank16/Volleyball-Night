@@ -4,7 +4,8 @@ export type Roster = {id:string; name:string; playerIds:string[]; subs:number};
 export type Session = {id:string; date:string; checkedIn:string[]; draft:Roster[]; confirmed:Roster[]; rounds:Round[]; games:Game[]; currentGame:number; scoreTarget?:number; confirmedAt:number|null};
 export type Round = {id:string; at:number; rosters:Roster[]};
 export type Game = {id:string; a:number; b:number; cycle:number; sidesSwapped?:boolean; scoreA?:number; scoreB?:number; serving?:'a'|'b'|null; scoreHistory?:{a:number;b:number;serving:'a'|'b'|null}[]; finishedAt?:number; target?:number};
-export type AppState = {players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean; publicTVEnabled?:boolean; uiPinHash?:string};
+export type PlayerGroup = {id:string;kind:'buddy'|'rival';playerIds:string[];name:string;sessionId?:string};
+export type AppState = {playerGroups?:PlayerGroup[];players:Player[]; session:Session; history:{sessionId:string; roundId:string; at:number; teams:string[][]}[]; showNumbers:boolean; publicTVEnabled?:boolean; uiPinHash?:string};
 export const SKILLS = [
   ['First Timer','I’m brand new to indoor volleyball and learning the rules, serving, and basic contact.'],
   ['Beginner','I know the basics, but serving, passing, and positioning are not yet consistent.'],
@@ -72,7 +73,7 @@ function scoreRosters(rosters:string[][], players:Map<string,Player>, history:Ap
   }
   return sum;
 }
-export function generate(players:Player[], sizes:number[], history:AppState['history'], prev:Roster[]=[]):Roster[]{
+function generateUnrestricted(players:Player[], sizes:number[], history:AppState['history'], prev:Roster[]=[]):Roster[]{
   if(sizes.reduce((a,b)=>a+b,0)!==players.length)throw Error('Team sizes must match attendance');
   const lookup=new Map(players.map(p=>[p.id,p]));const ids=players.map(p=>p.id);
   const previous=prev.map(r=>r.playerIds);
@@ -96,6 +97,67 @@ export function generate(players:Player[], sizes:number[], history:AppState['his
   }
   return best.map((playerIds,i)=>({id:uid(),name:`Team ${i+1}`,playerIds,subs:Math.max(0,6-playerIds.length)}));
 }
+/** Checkout edits today's rosters only; arrivals remain available for assignment. */
+export function reconcileAttendance(state:AppState){
+ const checked=new Set(state.session.checkedIn);
+ for(const team of [...state.session.draft,...state.session.confirmed]){
+  const before=team.playerIds.length;team.playerIds=team.playerIds.filter(id=>checked.has(id));
+  if(team.playerIds.length<before)team.subs=Math.max(team.subs,6-team.playerIds.length);
+ }
+ return state;
+}
+
+export function generate(players:Player[],sizes:number[],history:AppState['history'],prev:Roster[]=[],rules:PlayerGroup[]=[]):Roster[]{
+ if(!sizes.length||sizes.some(n=>!Number.isInteger(n)||n<1||n>8))throw Error('Assign players to empty teams before regenerating, or generate a new lineup.');
+ if(!rules.length)return generateUnrestricted(players,sizes,history,prev);
+ if(sizes.reduce((a,b)=>a+b,0)!==players.length)throw Error('Team sizes must match attendance.');
+ const ids=new Set(players.map(p=>p.id)),parent=new Map(players.map(p=>[p.id,p.id]));
+ const find=(id:string):string=>{const p=parent.get(id)!;if(p===id)return id;const root=find(p);parent.set(id,root);return root};
+ const active=rules.map(r=>({...r,playerIds:[...new Set(r.playerIds.filter(id=>ids.has(id)))]})).filter(r=>r.playerIds.length>1);
+ for(const r of active.filter(r=>r.kind==='buddy'))for(const id of r.playerIds.slice(1))parent.set(find(id),find(r.playerIds[0]));
+ const unitsMap=new Map<string,string[]>();for(const id of ids){const key=find(id);unitsMap.set(key,[...(unitsMap.get(key)??[]),id])}
+ const units=[...unitsMap.values()];
+ if(units.some(u=>u.length>Math.max(...sizes)))throw Error('A Buddies group is larger than every selected team. Choose larger teams or edit the group.');
+ const rivals=active.filter(r=>r.kind==='rival');
+ for(const r of rivals)if(new Set(r.playerIds.map(find)).size!==r.playerIds.length)throw Error('Buddies and Rivals conflict: linked buddies also belong to the same Rivals group. Edit those groups first.');
+ const rivalSets=rivals.map(r=>new Set(r.playerIds));
+ // The smallest possible number of same-team rival pairs for each group.
+ const ideal=rivals.map(r=>{const n=r.playerIds.length,k=sizes.length,q=Math.floor(n/k),extra=n%k;return extra*q*(q+1)/2+(k-extra)*q*(q-1)/2});
+ const collisions=(groups:string[][])=>rivalSets.map(set=>groups.reduce((total,g)=>{const n=g.filter(id=>set.has(id)).length;return total+n*(n-1)/2},0));
+ const valid=(groups:string[][])=>collisions(groups).every((n,i)=>n<=ideal[i]);
+ const lookup=new Map(players.map(p=>[p.id,p]));let best:string[][]|null=null,bestScore=Infinity;
+ for(let restart=0;restart<32;restart++){
+  const order=units.map(u=>({u,random:Math.random(),weight:rivalSets.filter(set=>u.some(id=>set.has(id))).length})).sort((a,b)=>b.u.length-a.u.length||b.weight-a.weight||a.random-b.random).map(x=>x.u);
+  const groups=sizes.map(()=>[] as string[]);let budget=25000;
+  const place=(index:number):boolean=>{
+   if(--budget<0)return false;if(index===order.length)return true;
+   const unit=order[index];
+   const choices=groups.map((g,i)=>({i,random:Math.random(),used:g.length})).sort((a,b)=>a.used-b.used||a.random-b.random);
+   for(const {i} of choices){
+    if(groups[i].length+unit.length>sizes[i])continue;
+    groups[i].push(...unit);
+    if(valid(groups)&&place(index+1))return true;
+    groups[i].splice(groups[i].length-unit.length);
+   }
+   return false;
+  };
+  if(!place(0))continue;
+  // Improve skill, height, gender and teammate history without breaking groups.
+  for(let step=0;step<250;step++){
+   const u=units[Math.floor(Math.random()*units.length)],v=units[Math.floor(Math.random()*units.length)];
+   if(u===v||u.length!==v.length)continue;
+   const a=groups.findIndex(g=>g.includes(u[0])),b=groups.findIndex(g=>g.includes(v[0]));if(a===b)continue;
+   const before=scoreRosters(groups,lookup,history,prev.map(t=>t.playerIds));
+   const oldA=groups[a],oldB=groups[b];groups[a]=oldA.filter(id=>!u.includes(id)).concat(v);groups[b]=oldB.filter(id=>!v.includes(id)).concat(u);
+   if(!valid(groups)||scoreRosters(groups,lookup,history,prev.map(t=>t.playerIds))>before){groups[a]=oldA;groups[b]=oldB}
+  }
+  const score=scoreRosters(groups,lookup,history,prev.map(t=>t.playerIds))+Math.random()*.6;
+  if(score<bestScore){bestScore=score;best=groups.map(g=>[...g])}
+ }
+ if(!best)throw Error('Could not fit these Buddies and Rivals groups into the selected team sizes. Try a different layout or edit the groups. No rules were ignored.');
+ return best.map((playerIds,i)=>({id:uid(),name:`Team ${i+1}`,playerIds,subs:Math.max(0,6-playerIds.length)}));
+}
+
 export const SCORE_TARGETS = [11,15,21,25] as const;
 export function winnerOf(game:Game, fallbackTarget=25):'a'|'b'|null {
  const a=game.scoreA??0,b=game.scoreB??0,target=game.target??fallbackTarget;
