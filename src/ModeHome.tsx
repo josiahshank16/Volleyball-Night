@@ -21,7 +21,7 @@ const cards=[
  {mode:'kiosk' as const,title:'Check-in kiosk',desc:'Find your name and check in',Icon:ClipboardCheck},
  {mode:'tv' as const,title:'TV display',desc:'Live teams, matches, and scores',Icon:Monitor},
  {mode:'scorekeeper' as const,title:'Scorekeeper',desc:'Track points and advance games',Icon:Trophy},
- {mode:'organizer' as const,title:'Organizer',desc:'Manage players, teams, and schedules',Icon:Settings}
+ {mode:'organizer' as const,title:'Organizer',desc:'Check-in, setup, players, buddies and rivals',Icon:Settings}
 ];
 export function ModeHome({protectedMode=false}:{protectedMode?:boolean}){
  const [copied,setCopied]=useState(false);
@@ -58,9 +58,6 @@ export function ModeHome({protectedMode=false}:{protectedMode?:boolean}){
   <p className="vn-home-note">{protectedMode?'Check-in and TV are open. Organizer and scorekeeper require the group PIN.':activeGroup?'The group PIN is a button prompt. Direct mode links remain open.':'Open design preview: no sign-in or PIN required yet.'}</p>
  </main></div>;
 }
-export function ModeSwitch({floating=false,uiPin=false}:{floating?:boolean;uiPin?:boolean}){
- return <a href={modeHref('home')} className={'vn-mode-switch '+(floating?'vn-mode-switch-floating':'')}
-  onClick={e=>{if(!uiPin)return;e.preventDefault();void askForUiPin('switch modes')
-   .then(ok=>{if(ok)window.location.assign(modeHref('home'))})
-   .catch(err=>window.alert((err as Error)?.message||String(err)))}}><House size={17}/> Switch mode</a>;
+export function ModeSwitch({floating=false}:{floating?:boolean}){
+ return <a href={modeHref('home')} className={'vn-mode-switch '+(floating?'vn-mode-switch-floating':'')}><House size={17}/> Switch modes</a>;
 }

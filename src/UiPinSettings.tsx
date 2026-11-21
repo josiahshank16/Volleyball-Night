@@ -29,7 +29,7 @@ export function UiPinSettings(){
   finally{setBusy(false)}
  };
  return <div className="group-setup-shell"><header className="group-setup-bar">
-  <strong>VOLLEYBALL NIGHT</strong><ModeSwitch uiPin/>
+  <strong>VOLLEYBALL NIGHT</strong><ModeSwitch/>
  </header><main className="group-setup-main vn-wizard-main">
   <section className="group-setup-heading"><div className="eyebrow">GROUP SETTINGS</div>
    <h1>{configured?'Change group PIN':'Set group PIN'}</h1>
