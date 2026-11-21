@@ -12,6 +12,7 @@ jobs:
           node-version: '22'
       - run: npm install
       - run: node scripts/test-player-groups.mjs
+      - run: node scripts/test-organizer-flow.mjs
       - run: npm run build
       - name: Summarize npm security advisories (informational)
         shell: bash
