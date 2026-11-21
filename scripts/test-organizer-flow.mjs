@@ -40,3 +40,16 @@ const emptyHTML=render(setup.App,initial);checkSetup(emptyHTML);assert.match(emp
 const draft=structuredClone(initial);draft.players=model.samplePlayers().slice(0,12);draft.session.checkedIn=draft.players.map(p=>p.id);draft.session.draft=[{id:'t1',name:'Team 1',playerIds:draft.session.checkedIn.slice(0,6),subs:0},{id:'t2',name:'Team 2',playerIds:draft.session.checkedIn.slice(6),subs:0}];const draftHTML=render(setup.App,draft);checkSetup(draftHTML);assert.ok(draftHTML.includes('Confirm teams &amp; continue'));assert.match(draftHTML,/<button class="btn primary" disabled="">Generate schedule/);
 const live=structuredClone(draft);live.session.confirmed=live.session.draft;live.session.draft=[];live.session.games=[{id:'game1',a:0,b:1,cycle:1,scoreA:9,scoreB:7}];const liveHTML=render(setup.App,live);checkSetup(liveHTML);assert.ok(liveHTML.includes('Continue to schedule'));assert.ok(liveHTML.includes('Rebuild schedule'));assert.ok(liveHTML.includes('Add game to end'));
 console.log('Passed: four organizer launch sections; open mode switch; all setup fields rendered for empty, draft and live states; schedule generation gated until confirmation.');
+
+// Exercise the real confirmation handler, rather than constructing its result.
+function nestedFunction(name){let result;function visit(node){if(ts.isFunctionDeclaration(node)&&node.name?.text===name)result=node.getText(ast);ts.forEachChild(node,visit)}visit(ast);assert.ok(result);return ts.transpile(result,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022})}
+const transition=structuredClone(draft),apply=fn=>{fn(transition);return true},copy=value=>structuredClone(value);
+const confirmAction=new Function('state','update','copy','uid','flash','scrollToSetup',nestedFunction('confirm')+';return confirm;')(transition,apply,copy,()=>crypto.randomUUID(),()=>{},()=>{});
+confirmAction();assert.equal(transition.session.draft.length,0);assert.equal(transition.session.confirmed.length,2);assert.equal(transition.history.length,1);assert.equal(transition.session.rounds.length,1);
+const confirmedHTML=render(setup.App,transition);assert.match(confirmedHTML,/<button class="btn primary">Generate schedule/);assert.ok(!confirmedHTML.includes('Confirm teams &amp; continue'));
+confirmAction();assert.equal(transition.history.length,1,'Repeated confirmation must not duplicate history');
+const scheduleAction=new Function('state','update','confirmReplaceGames','cycles','fullFour','buildGames','flash','scrollToSetup',nestedFunction('createSchedule')+';return createSchedule;')(transition,apply,()=>true,1,false,model.buildGames,()=>{},()=>{});
+scheduleAction();assert.ok(transition.session.games.length>0,'Schedule generation works immediately after confirmation');
+const legacy=structuredClone(transition);legacy.session.draft=copy(legacy.session.confirmed);const repaired=model.normalizePlayerNames(legacy);assert.equal(repaired.session.draft.length,0);assert.deepEqual(repaired.history,legacy.history);assert.deepEqual(repaired.session.games,legacy.session.games);
+legacy.session.draft[0].playerIds.reverse();assert.ok(model.normalizePlayerNames(legacy).session.draft.length,'Preserve a genuinely edited draft');
+console.log('Passed: actual confirmation enables scheduling, schedule action works, repeated confirmation preserves history, and legacy duplicate drafts recover safely.');
