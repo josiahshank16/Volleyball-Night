@@ -446,3 +446,5 @@
 .tv-scoreboard .tv-score-content{font-size:4vmin;font-size:min(6cqw,13cqh)}
 .tv-scoreboard .tv-score-side strong{font-size:4.8em}
 .tv-order-card>small{line-height:1.4}
+
+.relationship-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px}.relationship-players{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;max-height:360px;overflow:auto;margin-top:15px}.relationship-players label{padding:10px;border:1px solid #dce7ed;border-radius:9px;display:flex;gap:8px;align-items:center}.relationship-group{display:flex;gap:12px;align-items:center;padding:18px 0;border-bottom:1px solid #e6ecf2}.relationship-group>div{flex:1}.relationship-group small{color:#648174}.relationship-group p{margin-top:6px}.team-drop-zone>.field{margin-top:18px}@media(max-width:600px){.relationship-group{flex-wrap:wrap}.relationship-group>div{flex-basis:100%}}
