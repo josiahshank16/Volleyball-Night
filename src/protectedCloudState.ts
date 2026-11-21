@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {collection,doc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firestore} from './firebase';
 import {groupLocalCacheKey} from './groupConnection';
-import {normalizePlayerNames,type AppState,type Player,load,save} from './model';
+import {reconcileAttendance,normalizePlayerNames,type AppState,type Player,load,save} from './model';
 import {PUBLIC_TV_REF,toPublicTV} from './publicViews';
 
 const LIVE_REF=doc(firestore,'liveSessions','current');
@@ -17,7 +17,7 @@ function decode(raw:unknown):AppState{
  const state=JSON.parse(value) as AppState;
  if(!Array.isArray(state.players)||!state.session||!Array.isArray(state.history))
   throw Error('The protected group session is incompatible with this app.');
- return normalizePlayerNames(state);
+ return reconcileAttendance(normalizePlayerNames(state));
 }
 const payload=(state:AppState)=>({json:JSON.stringify(state)});
 
@@ -39,7 +39,7 @@ export function useProtectedCloudState(){
    try{
     if(!snapshot.exists())throw Error('This protected group has no session. Ask the owner to finish migration.');
     const received=decode(snapshot.data());
-    if(attendance.current)received.session.checkedIn=attendance.current;
+    if(attendance.current)received.session.checkedIn=attendance.current;reconcileAttendance(received);
     connected.current=true;
     if(!pending.current){latest.current=received;setState(received);setStatus('connected');setError('')}
    }catch(e){connected.current=false;setStatus('error');setError(message(e))}
@@ -49,8 +49,12 @@ export function useProtectedCloudState(){
    if(!Array.isArray(ids)){setStatus('error');setError('The public attendance document is missing.');return}
    attendance.current=ids.filter((id):id is string=>typeof id==='string');
    if(!pending.current){
+    const departed=[...latest.current.session.draft,...latest.current.session.confirmed].some(t=>t.playerIds.some(id=>!attendance.current!.includes(id)));
     latest.current={...latest.current,session:{...latest.current.session,checkedIn:attendance.current}};
-    setState(latest.current);
+    reconcileAttendance(latest.current);setState(latest.current);
+    // Persist kiosk departures while a leader is connected, so a returning
+    // player goes to the unassigned list instead of rejoining an old roster.
+    if(departed&&connected.current)apply(()=>{});
    }
   },e=>{setStatus('error');setError(message(e))});
   const offRegistrations=onSnapshot(REGISTRATIONS,snapshot=>{
@@ -81,7 +85,7 @@ export function useProtectedCloudState(){
   if(!connected.current||!attendance.current){
    setStatus('error');setError('Protected group is not connected. No changes were made.');return false;
   }
-  const optimistic=structuredClone(latest.current);fn(optimistic);
+  const optimistic=structuredClone(latest.current);fn(optimistic);reconcileAttendance(optimistic);
   latest.current=optimistic;setState(optimistic);pending.current++;setStatus('saving');
   queue.current=queue.current.catch(()=>{}).then(async()=>{
    try{
@@ -93,7 +97,7 @@ export function useProtectedCloudState(){
      const ids=publicAttendance.data().checkedIn;
      if(!Array.isArray(ids))throw Error('Attendance is invalid.');
      next.session.checkedIn=ids;
-     fn(next);
+     fn(next);reconcileAttendance(next);
      if(JSON.stringify(ids)!==JSON.stringify(next.session.checkedIn))
       tx.update(ATTENDANCE_REF,{checkedIn:next.session.checkedIn});
      const oldNames=new Map(before.players.map(p=>[p.id,p.name]));
