@@ -19,7 +19,14 @@ export const SKILLS = [
   ['Elite','I play at an exceptional level with precise technique and advanced decisions under pressure.']
 ] as const;
 export const formatPlayerName=(name:string)=>name.trim().replace(/\s+/g,' ').toLocaleLowerCase().replace(/(^|[\s'-])\p{L}/gu,letter=>letter.toLocaleUpperCase());
-export function normalizePlayerNames(state:AppState):AppState {return {...state,players:state.players.map(p=>({...p,name:formatPlayerName(p.name),...(p.firstName?{firstName:formatPlayerName(p.firstName)}:{}),...(p.lastName?{lastName:formatPlayerName(p.lastName)}:{})}))};}
+export function normalizePlayerNames(state:AppState):AppState {
+ const normalized={...state,players:state.players.map(p=>({...p,name:formatPlayerName(p.name),...(p.firstName?{firstName:formatPlayerName(p.firstName)}:{}),...(p.lastName?{lastName:formatPlayerName(p.lastName)}:{})}))};
+ // Older confirmations left an identical draft behind. Clear only that exact
+ // duplicate so existing groups recover without discarding later edits.
+ if(state.session.confirmedAt!==null&&state.session.confirmed.length>0&&JSON.stringify(state.session.draft)===JSON.stringify(state.session.confirmed))normalized.session={...state.session,draft:[]};
+ return normalized;
+}
+
 export const uid=()=>crypto.randomUUID();
 export const skill=(p:Player)=>p.overrideSkill??p.selfSkill;
 export const ft=(inches:number|null)=>inches===null?'Not set':`${Math.floor(inches/12)}′${inches%12}″`;
