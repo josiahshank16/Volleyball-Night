@@ -2,7 +2,7 @@ import {useEffect,useState,useRef,useCallback} from 'react';
 import {doc,onSnapshot,runTransaction,serverTimestamp} from 'firebase/firestore';
 import {firestore} from './firebase';
 import {groupLocalCacheKey,activeGroup} from './groupConnection';
-import {normalizePlayerNames,type AppState,load,save,exportState} from './model';
+import {reconcileAttendance,normalizePlayerNames,type AppState,load,save,exportState} from './model';
 
 // Open-access design prototype. The single document is readable and editable
 // by anyone using the app. The eventual production model can add a leader PIN.
@@ -24,7 +24,7 @@ function decode(source:unknown):AppState{
   v=JSON.parse(json);
  }
  if(!valid(v))throw Error('The cloud session has an unsupported data format.');
- return normalizePlayerNames(v);
+ return reconcileAttendance(normalizePlayerNames(v));
 }
 const encode=(state:AppState)=>({json:JSON.stringify(state)});
 const describe=(e:unknown)=>{
@@ -59,14 +59,14 @@ export function useCloudState(){
  },[retry]);
  const apply=useCallback((fn:(draft:AppState)=>void)=>{
   if(!connected.current){setStatus('error');setError('Not connected to Firestore. No changes were made. Use Retry connection in Organizer Settings.');return false;}
-  const optimistic=structuredClone(latest.current);fn(optimistic);
+  const optimistic=structuredClone(latest.current);fn(optimistic);reconcileAttendance(optimistic);
   latest.current=optimistic;setState(optimistic);pending.current++;setStatus('saving');
   queue.current=queue.current.catch(()=>{}).then(async()=>{
    try{
     const result=await runTransaction(firestore,async tx=>{
      const snap=await tx.get(LIVE_REF);
      if(!snap.exists())throw Error('Cloud session is missing.');
-     const next=structuredClone(decode(snap.data()));fn(next);
+     const next=structuredClone(decode(snap.data()));fn(next);reconcileAttendance(next);
      tx.update(LIVE_REF,{payload:encode(next),updatedAt:serverTimestamp(),updatedBy:'open-prototype'});
      return next;
     });
